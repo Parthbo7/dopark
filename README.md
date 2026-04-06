@@ -179,6 +179,8 @@ Doparking uses dynamic slot conversion logic:
 
 </div>
 
+### Ticket
+<img width="810" height="828" alt="image" src="https://github.com/user-attachments/assets/7518f449-31e9-4485-9e7c-d4b2e653f4e9" />
 
 ---
 
