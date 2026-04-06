@@ -131,15 +131,28 @@ Doparking uses dynamic slot conversion logic:
 > 📌 Add your project screenshots here
 
 ### 🔹 User Dashboard
+## 🖼️ Screenshots
+
 <div align="center">
 
-<img src="https://github.com/user-attachments/assets/82757181-d287-4c72-addf-c96127815ce2" width="45%" />
-<img src="https://github.com/user-attachments/assets/e9b528a6-7580-46e2-b715-414a397467a2" width="45%" />
+<!-- 🌟 Hero / Homepage (Full Width) -->
+<img src="https://github.com/user-attachments/assets/82757181-d287-4c72-addf-c96127815ce2" width="90%" />
+<p><b>🏠 Homepage / Landing View</b></p>
 
-<img src="https://github.com/user-attachments/assets/80e99320-2b29-4d1f-b594-4c675011d412" width="45%" />
-<img src="https://github.com/user-attachments/assets/ee55f2fe-dc35-409a-a35a-f04d93efd9e0" width="45%" />
+<br>
 
-<img src="https://github.com/user-attachments/assets/3ef6a18a-b3d8-448c-9449-ca94945b97b1" width="45%" />
+<!-- 📱 Other Screens (Grid) -->
+<p>
+  <img src="https://github.com/user-attachments/assets/e9b528a6-7580-46e2-b715-414a397467a2" width="45%" />
+  <img src="https://github.com/user-attachments/assets/80e99320-2b29-4d1f-b594-4c675011d412" width="45%" />
+</p>
+<p><b>Booking UI</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Slot Selection</b></p>
+
+<p>
+  <img src="https://github.com/user-attachments/assets/ee55f2fe-dc35-409a-a35a-f04d93efd9e0" width="45%" />
+  <img src="https://github.com/user-attachments/assets/3ef6a18a-b3d8-448c-9449-ca94945b97b1" width="45%" />
+</p>
+<p><b>Admin Panel</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Map View</b></p>
 
 </div>
 
