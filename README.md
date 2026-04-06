@@ -126,9 +126,6 @@ Doparking uses dynamic slot conversion logic:
 
 ---
 
-## 🖼️ Screenshots
-
-> 📌 Add your project screenshots here
 
 ### 🔹 User Dashboard
 ## 🖼️ Screenshots
