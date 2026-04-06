@@ -178,9 +178,16 @@ Doparking uses dynamic slot conversion logic:
 <p><b>Revenue & Insights</b></p>
 
 </div>
+### 🎟️ Ticket Generation
 
-### Ticket
-<img width="810" height="828" alt="image" src="https://github.com/user-attachments/assets/7518f449-31e9-4485-9e7c-d4b2e653f4e9" />
+<div align="center">
+
+<img src="https://github.com/user-attachments/assets/7518f449-31e9-4485-9e7c-d4b2e653f4e9" width="40%" />
+
+<p><b>Digital Parking Ticket</b></p>
+<p>Generated instantly after booking with complete details for entry, exit, and verification.</p>
+
+</div>
 
 ---
 
