@@ -131,13 +131,17 @@ Doparking uses dynamic slot conversion logic:
 > 📌 Add your project screenshots here
 
 ### 🔹 User Dashboard
-<img width="1918" height="912" alt="image" src="https://github.com/user-attachments/assets/82757181-d287-4c72-addf-c96127815ce2" />
-<img width="737" height="901" alt="image" src="https://github.com/user-attachments/assets/e9b528a6-7580-46e2-b715-414a397467a2" />
-<img width="741" height="905" alt="image" src="https://github.com/user-attachments/assets/80e99320-2b29-4d1f-b594-4c675011d412" />
-<img width="741" height="905" alt="image" src="https://github.com/user-attachments/assets/ee55f2fe-dc35-409a-a35a-f04d93efd9e0" />
-<img width="754" height="910" alt="image" src="https://github.com/user-attachments/assets/3ef6a18a-b3d8-448c-9449-ca94945b97b1" />
+<div align="center">
 
+<img src="https://github.com/user-attachments/assets/82757181-d287-4c72-addf-c96127815ce2" width="45%" />
+<img src="https://github.com/user-attachments/assets/e9b528a6-7580-46e2-b715-414a397467a2" width="45%" />
 
+<img src="https://github.com/user-attachments/assets/80e99320-2b29-4d1f-b594-4c675011d412" width="45%" />
+<img src="https://github.com/user-attachments/assets/ee55f2fe-dc35-409a-a35a-f04d93efd9e0" width="45%" />
+
+<img src="https://github.com/user-attachments/assets/3ef6a18a-b3d8-448c-9449-ca94945b97b1" width="45%" />
+
+</div>
 
 ### 🔹 Booking Page
 ![Booking Page](./screenshots/booking.png)
