@@ -156,14 +156,14 @@ Doparking uses dynamic slot conversion logic:
 
 </div>
 
-### 🔹 Booking Page
-![Booking Page](./screenshots/booking.png)
 
 ### 🔹 Admin Panel
-![Admin Panel](./screenshots/admin.png)
+<img width="1917" height="911" alt="image" src="https://github.com/user-attachments/assets/3384a933-a5b3-4229-ab3d-f6f7c57999de" />
+<img width="1902" height="916" alt="image" src="https://github.com/user-attachments/assets/e9a9a5aa-1161-434b-a4f2-543cd8f2b2fc" />
+<img width="1899" height="906" alt="image" src="https://github.com/user-attachments/assets/8aff37e0-67ba-4d4a-9d18-4c37c92a151a" />
+<img width="1892" height="907" alt="image" src="https://github.com/user-attachments/assets/de0640c4-ebac-4ab2-b8bf-ce85d5273029" />
+<img width="1899" height="902" alt="image" src="https://github.com/user-attachments/assets/39de9b1e-7208-4951-ae6f-5fdc9e95e451" />
 
-### 🔹 Map View
-![Map View](./screenshots/map.png)
 
 ---
 
