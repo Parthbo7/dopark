@@ -158,7 +158,7 @@ Doparking uses dynamic slot conversion logic:
 
 
 ### 🔹 Admin Panel
-### 🔹 Admin Panel
+
 
 <div align="center">
 
