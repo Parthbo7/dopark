@@ -1,4 +1,4 @@
-#### 🚗 Doparking – Smart AI-Based Parking Management System
+# 🚗 Doparking – Smart AI-Based Parking Management System
 
 Doparking is an intelligent, scalable, and real-time parking management platform designed to reduce urban congestion and optimize parking utilization using modern web technologies and smart automation.
 
