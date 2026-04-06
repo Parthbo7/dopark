@@ -13,6 +13,8 @@ export default function AdminDashboard() {
     occupancyRate: 0
   });
   const [recentBookings, setRecentBookings] = useState([]);
+  const [aiAutomation, setAiAutomation] = useState(true);
+  const [spaceOptimisation, setSpaceOptimisation] = useState(false);
 
   // Verify Admin
   useEffect(() => {
@@ -23,6 +25,15 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   // Fetch Dashboard Data
+  useEffect(() => {
+     // Whenever spaceOptimisation changes, theoretically we'd update `app_settings` 
+     // and invoke the space optimization logic on the backend.
+     if (spaceOptimisation) {
+        supabase.rpc('run_dynamic_space_optimization').then(({ error }) => {
+            if(error && error.code !== 'PGRST202') console.error("Optimization RPC Error:", error);
+        });
+     }
+  }, [spaceOptimisation]);
   useEffect(() => {
     const fetchDashboardStats = async () => {
       setLoading(true);
@@ -141,7 +152,7 @@ export default function AdminDashboard() {
                 <span className="material-symbols-outlined text-[24px]">group</span>
                 <span className="text-[15px]">User Control</span>
              </button>
-              <button className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
+              <button onClick={() => navigate('/admin/security')} className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
                 <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
                 <span className="text-[15px]">Security</span>
              </button>
@@ -338,15 +349,36 @@ export default function AdminDashboard() {
                           </div>
 
                           <div className="mt-10 p-6 bg-[#F4F7FE] rounded-3xl border border-[#E9EDF7]">
-                             <div className="font-bold text-[#2B3674] text-xs uppercase tracking-widest mb-4">Support Direct</div>
-                             <div className="flex items-center gap-4 cursor-pointer hover:bg-white p-3 rounded-2xl transition-all border border-transparent hover:border-[#E9EDF7]">
-                                <div className="w-10 h-10 rounded-xl bg-[#5D50D6] text-white flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-[20px]">headset_mic</span>
-                                </div>
-                                <div>
-                                    <div className="text-sm font-bold text-[#2B3674]">System On-Call</div>
-                                    <div className="text-[10px] font-black text-[#A3AED0] uppercase">Connect Now</div>
-                                </div>
+                             <div className="font-bold text-[#2B3674] text-xs uppercase tracking-widest mb-6">System Controls</div>
+                             <div className="flex flex-col gap-5">
+                               <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#5D50D6]">
+                                        <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+                                     </div>
+                                     <span className="text-sm font-bold text-[#2B3674]">AI Automation</span>
+                                  </div>
+                                  <div 
+                                    onClick={() => setAiAutomation(!aiAutomation)} 
+                                    className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${aiAutomation ? 'bg-[#5D50D6]' : 'bg-slate-300'}`}
+                                  >
+                                    <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${aiAutomation ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                  </div>
+                               </div>
+                               <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[#5D50D6]">
+                                        <span className="material-symbols-outlined text-[16px]">dashboard_customize</span>
+                                     </div>
+                                     <span className="text-sm font-bold text-[#2B3674]">Space Optimisation</span>
+                                  </div>
+                                  <div 
+                                    onClick={() => setSpaceOptimisation(!spaceOptimisation)} 
+                                    className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${spaceOptimisation ? 'bg-[#5D50D6]' : 'bg-slate-300'}`}
+                                  >
+                                    <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${spaceOptimisation ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                  </div>
+                               </div>
                              </div>
                           </div>
                        </div>

@@ -113,7 +113,7 @@ export default function AdminUsers() {
                 <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
                 <span className="text-[15px]">User Control</span>
              </button>
-              <button className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
+              <button onClick={() => navigate('/admin/security')} className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
                 <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
                 <span className="text-[15px]">Security</span>
              </button>

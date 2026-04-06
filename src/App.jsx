@@ -13,7 +13,9 @@ import AdminDashboard from "./AdminDashboard";
 import AdminUsers from "./AdminUsers";
 import AdminSlots from "./AdminSlots";
 import AdminAnalytics from "./AdminAnalytics";
+import AdminSecurity from "./AdminSecurity";
 import ActiveBooking from "./ActiveBooking";
+import MapView from "./MapView";
 
 function App() {
   return (
@@ -29,6 +31,7 @@ function App() {
         <Route path="/history" element={<History />} />
         <Route path="/my-cards" element={<MyCards />} />
         <Route path="/active-booking" element={<ActiveBooking />} />
+        <Route path="/map" element={<MapView />} />
         
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -36,6 +39,7 @@ function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/slots" element={<AdminSlots />} />
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        <Route path="/admin/security" element={<AdminSecurity />} />
       </Routes>
     </BrowserRouter>
   )

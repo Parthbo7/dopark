@@ -313,3 +313,155 @@ CREATE TABLE IF NOT EXISTS public.admin_credentials (
 INSERT INTO public.admin_credentials (email, password)
 VALUES ('admin@doparking.com', 'admin123')
 ON CONFLICT (email) DO NOTHING;
+
+
+-- ============================================================================
+-- 11. NOTIFICATIONS TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,           -- booking, payment, entry_exit, alert, session
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  icon TEXT DEFAULT 'info',     -- Material icon name
+  status TEXT DEFAULT 'unread', -- unread / read / dismissed
+  action_url TEXT,              -- Optional deep-link (e.g. /history, /my-cards)
+  metadata JSONB DEFAULT '{}', -- Extra data (booking_id, amount, slot, etc.)
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id, created_at DESC);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users see own notifications" ON public.notifications;
+CREATE POLICY "Users see own notifications" ON public.notifications
+  FOR ALL USING ( auth.uid() = user_id );
+
+-- Enable realtime on notifications
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+
+-- ============================================================================
+-- 11b. TRIGGER: Auto-notify on NEW BOOKING
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_on_booking_insert()
+RETURNS trigger AS $$
+DECLARE
+  v_station_name TEXT;
+  v_slot_number TEXT;
+BEGIN
+  SELECT name INTO v_station_name FROM public.parking_stations WHERE station_id = NEW.station_id;
+  SELECT slot_number INTO v_slot_number FROM public.parking_slots WHERE slot_id = NEW.slot_id;
+
+  -- Slot reserved notification
+  INSERT INTO public.notifications (user_id, type, title, message, icon, metadata)
+  VALUES (
+    NEW.user_id,
+    'booking',
+    'Slot Reserved Successfully',
+    'Your slot ' || COALESCE(v_slot_number, '') || ' at ' || COALESCE(v_station_name, 'Station') || ' is confirmed.',
+    'local_parking',
+    jsonb_build_object('booking_id', NEW.booking_id, 'station', v_station_name, 'slot', v_slot_number)
+  );
+
+  -- Payment notification
+  IF NEW.total_price IS NOT NULL AND NEW.total_price > 0 THEN
+    INSERT INTO public.notifications (user_id, type, title, message, icon, action_url, metadata)
+    VALUES (
+      NEW.user_id,
+      'payment',
+      'Payment Successful',
+      '₹' || NEW.total_price || ' deducted via ' || COALESCE(NEW.payment_method, 'Wallet') || '.',
+      'account_balance_wallet',
+      '/history',
+      jsonb_build_object('amount', NEW.total_price, 'method', NEW.payment_method, 'booking_id', NEW.booking_id)
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_booking_notify ON public.bookings;
+CREATE TRIGGER trg_booking_notify
+  AFTER INSERT ON public.bookings
+  FOR EACH ROW EXECUTE FUNCTION public.notify_on_booking_insert();
+
+
+-- ============================================================================
+-- 11c. TRIGGER: Auto-notify on BOOKING STATUS CHANGE (completed / cancelled)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_on_booking_update()
+RETURNS trigger AS $$
+DECLARE
+  v_station_name TEXT;
+BEGIN
+  IF OLD.status = NEW.status THEN RETURN NEW; END IF;
+
+  SELECT name INTO v_station_name FROM public.parking_stations WHERE station_id = NEW.station_id;
+
+  IF NEW.status = 'completed' THEN
+    INSERT INTO public.notifications (user_id, type, title, message, icon, action_url, metadata)
+    VALUES (
+      NEW.user_id,
+      'entry_exit',
+      'Exit Confirmed',
+      'Your session at ' || COALESCE(v_station_name, 'Station') || ' is complete. Total bill: ₹' || COALESCE(NEW.total_price::TEXT, '0') || '.',
+      'logout',
+      '/history',
+      jsonb_build_object('booking_id', NEW.booking_id, 'total', NEW.total_price)
+    );
+  ELSIF NEW.status = 'cancelled' THEN
+    INSERT INTO public.notifications (user_id, type, title, message, icon, metadata)
+    VALUES (
+      NEW.user_id,
+      'booking',
+      'Reservation Cancelled',
+      'Your reservation at ' || COALESCE(v_station_name, 'Station') || ' has been cancelled.',
+      'event_busy',
+      jsonb_build_object('booking_id', NEW.booking_id)
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_booking_status_notify ON public.bookings;
+CREATE TRIGGER trg_booking_status_notify
+  AFTER UPDATE ON public.bookings
+  FOR EACH ROW EXECUTE FUNCTION public.notify_on_booking_update();
+
+
+-- ============================================================================
+-- 11d. TRIGGER: Low Balance Warning on wallet deduction
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_low_balance()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.balance < 200 AND OLD.balance >= 200 THEN
+    INSERT INTO public.notifications (user_id, type, title, message, icon, action_url, metadata)
+    VALUES (
+      NEW.user_id,
+      'payment',
+      'Low Wallet Balance',
+      'Your DoCard balance is ₹' || NEW.balance || '. Recharge to avoid payment failures.',
+      'warning',
+      '/my-cards',
+      jsonb_build_object('balance', NEW.balance)
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_low_balance ON public.parking_cards;
+CREATE TRIGGER trg_low_balance
+  AFTER UPDATE ON public.parking_cards
+  FOR EACH ROW EXECUTE FUNCTION public.notify_low_balance();

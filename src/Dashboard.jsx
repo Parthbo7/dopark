@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,24 @@ export default function Dashboard() {
   // Stations State
   const [stations, setStations] = useState([]);
   const [stationsLoading, setStationsLoading] = useState(true);
+
+  // Google Map
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const GOOGLE_MAPS_KEY = 'AIzaSyCmIT5V_YSb89dai33rt4vp9Gs2ELEyX1o';
+
+  const PARKING_PINS = [
+    { name: "Phoenix Marketcity",  lat: 18.5610, lng: 73.9143 },
+    { name: "Amanora Mall",        lat: 18.5186, lng: 73.9365 },
+    { name: "Westend Mall",        lat: 18.5619, lng: 73.8076 },
+    { name: "Balewadi High Street",lat: 18.5708, lng: 73.7742 },
+    { name: "Ishanya Mall",        lat: 18.5525, lng: 73.8907 },
+    { name: "JM Road Theater",     lat: 18.5208, lng: 73.8473 },
+    { name: "Kopa Mall",           lat: 18.5362, lng: 73.8931 },
+    { name: "MG Road Shopping",    lat: 18.5191, lng: 73.8782 },
+    { name: "Pavilion Mall",       lat: 18.5314, lng: 73.8296 },
+    { name: "Seasons Mall",        lat: 18.5154, lng: 73.9318 },
+  ];
 
   // Profile Fetch
   useEffect(() => {
@@ -111,6 +129,55 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Load Google Maps
+  useEffect(() => {
+    const loadMap = () => {
+      if (!window.google?.maps || !mapContainerRef.current || mapInstanceRef.current) return;
+      const map = new window.google.maps.Map(mapContainerRef.current, {
+        center: { lat: 18.535, lng: 73.870 },
+        zoom: 12,
+        disableDefaultUI: true,
+        clickableIcons: false,
+        styles: [
+          { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+          { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+          { featureType: 'landscape', stylers: [{ color: '#f0f4f8' }] },
+          { featureType: 'water', stylers: [{ color: '#b8d4ea' }] },
+        ],
+      });
+      mapInstanceRef.current = map;
+      const colors = ['#10B981','#F59E0B','#EF4444'];
+      PARKING_PINS.forEach(loc => {
+        const c = colors[Math.floor(Math.random() * 3)];
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><circle cx="20" cy="20" r="18" fill="${c}" stroke="white" stroke-width="3"/><text x="20" y="27" text-anchor="middle" font-family="Inter,sans-serif" font-size="15" font-weight="800" fill="white">P</text><path d="M20 38 L15 48 L20 44 L25 48 Z" fill="${c}"/></svg>`;
+        new window.google.maps.Marker({
+          position: { lat: loc.lat, lng: loc.lng },
+          map,
+          title: loc.name,
+          icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new window.google.maps.Size(40, 50), anchor: new window.google.maps.Point(20, 50) },
+          animation: window.google.maps.Animation.DROP,
+        });
+      });
+    };
+
+    // Load script if not present
+    if (!window.google?.maps) {
+      if (!document.getElementById('gmap-dash')) {
+        window.__gmapDashInit = loadMap;
+        const s = document.createElement('script');
+        s.id = 'gmap-dash';
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&callback=__gmapDashInit&v=weekly`;
+        s.async = true;
+        document.head.appendChild(s);
+      } else {
+        const poll = setInterval(() => { if (window.google?.maps) { clearInterval(poll); loadMap(); } }, 300);
+      }
+    } else {
+      loadMap();
+    }
+  }, []);
+
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
@@ -151,7 +218,7 @@ export default function Dashboard() {
               </button>
            </div>
 
-           <nav className="space-y-2 mb-6">
+           <nav className="space-y-1">
               <a href="#" className="flex items-center gap-4 bg-[#4a40e0]/5 text-[#4a40e0] p-3 rounded-xl font-semibold text-sm">
                  <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
                  Home
@@ -160,59 +227,28 @@ export default function Dashboard() {
                  <span className="material-symbols-outlined">history</span>
                  Parking History
               </a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/my-cards'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
+                 <span className="material-symbols-outlined">credit_card</span>
+                 My Cards
+              </a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/active-booking'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
+                 <span className="material-symbols-outlined">receipt_long</span>
+                 Active Booking
+              </a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/notifications'); }} className="flex items-center justify-between text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
+                 <div className="flex items-center gap-4">
+                    <span className="material-symbols-outlined">notifications</span>
+                    Notifications
+                 </div>
+                 <div className="w-2 h-2 rounded-full bg-error"></div>
+              </a>
            </nav>
 
-           <a href="#" onClick={(e) => { e.preventDefault(); navigate('/my-cards'); }} className="flex items-center gap-4 text-on-surface p-3 mb-4 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
-             <span className="material-symbols-outlined text-on-surface-variant">credit_card</span>
-             My Cards
-           </a>
-
-           {/* Vehicle Card fetching from real DB */}
-           <div className="bg-[#4a40e0] p-5 rounded-2xl shadow-[0_12px_24px_rgba(74,64,224,0.25)] relative overflow-hidden mb-6 group cursor-pointer hover:shadow-lg transition">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none group-hover:bg-white/20 transition duration-500"></div>
-               <div className="flex justify-between items-start mb-4 relative z-10">
-                   <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                       {profile?.vehicle_type === '2w' ? 'two_wheeler' : 'directions_car'}
-                   </span>
-                   <span className="bg-white/20 text-white text-[9px] font-bold px-2 py-1 rounded uppercase tracking-widest backdrop-blur-sm">Primary</span>
-               </div>
-               <h3 className="text-white text-xl font-extrabold tracking-widest drop-shadow-sm relative z-10">
-                   {loading ? "..." : (profile?.vehicle_number || "NO VEHICLE")}
-               </h3>
-               <p className="text-white/80 text-xs mb-5 relative z-10">
-                   {profile?.vehicle_type === '2w' ? 'Motorcycle (2W)' : 'Car (4W)'}
-               </p>
-               <div className="flex gap-3 relative z-10">
-                  <button className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg font-bold text-xs flex justify-center items-center gap-1 transition-colors backdrop-blur-md">
-                     <span className="material-symbols-outlined text-[14px]">sync_alt</span>
-                     SWITCH
-                  </button>
-                  <button className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg font-bold text-xs flex justify-center items-center gap-1 transition-colors backdrop-blur-md">
-                     <span className="material-symbols-outlined text-[14px]">add</span>
-                     NEW
-                  </button>
-               </div>
-           </div>
-
-           <div className="mt-auto">
-             <div className="mb-2 uppercase text-[10px] font-bold text-outline-variant tracking-widest px-3">More</div>
-             <nav className="space-y-1">
-                <a href="#" onClick={(e) => { e.preventDefault(); navigate('/active-booking'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition">
-                   <span className="material-symbols-outlined">receipt_long</span>
-                   Active Booking
-                </a>
-                <a href="#" onClick={(e) => { e.preventDefault(); navigate('/notifications'); }} className="flex items-center justify-between text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition">
-                   <div className="flex items-center gap-4">
-                      <span className="material-symbols-outlined">notifications</span>
-                      Notifications
-                   </div>
-                   <div className="w-2 h-2 rounded-full bg-error"></div>
-                </a>
-                <button onClick={handleLogout} className="w-full flex items-center gap-4 text-error p-3 rounded-xl font-semibold text-sm hover:bg-error/10 transition mt-4">
-                   <span className="material-symbols-outlined">logout</span>
-                   Logout
-                </button>
-             </nav>
+           <div className="mt-8">
+              <button onClick={handleLogout} className="w-full flex items-center gap-4 text-error p-3 rounded-xl font-semibold text-sm hover:bg-error/10 transition">
+                 <span className="material-symbols-outlined">logout</span>
+                 Logout
+              </button>
            </div>
 
         </div>
@@ -253,19 +289,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Map Grid Elements (Aesthetic Background) */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-             <div className="w-full h-full bg-[radial-gradient(#ced5db_1px,transparent_1px)] [background-size:24px_24px] md:[background-size:40px_40px] opacity-60"></div>
-          </div>
-
-          {/* Active Marker in Center */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center cursor-pointer transition-transform hover:scale-110">
-              <div className="bg-[#4a40e0] text-white w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-2xl shadow-[#4a40e0]/40 border-2 border-white marker-pulse z-20">
-                <span className="font-bold text-xl md:text-2xl">P</span>
-              </div>
-              <div className="w-4 h-4 md:w-5 md:h-5 bg-[#4a40e0] rotate-45 -mt-2 -md:mt-3 z-10"></div>
-              <div className="absolute w-24 h-24 bg-[#4a40e0]/20 rounded-full animate-ping -z-10"></div>
-          </div>
+          {/* Live Google Map Background */}
+          <div ref={mapContainerRef} className="absolute inset-0 z-0" style={{ minHeight: '100%' }} />
 
           {/* Zomato-Style Horizontally Scrolling Cards Container */}
           <div className="absolute bottom-[90px] md:bottom-12 w-full px-4 overflow-x-auto snap-x custom-scrollbar flex gap-4 z-20 pb-4">
@@ -301,7 +326,7 @@ export default function Dashboard() {
                       </div>
                       
                       <button 
-                         onClick={() => navigate('/booking', { state: { stationId: station.station_id, stationName: station.name, vehicleType: profile?.vehicle_type || '4w' } })} 
+                         onClick={() => navigate('/booking', { state: { stationId: station.station_id, stationName: station.name, stationAddress: [station.address, station.city].filter(Boolean).join(', ') || 'Pune', stationLat: station.latitude, stationLng: station.longitude, vehicleType: profile?.vehicle_type || '4w' } })} 
                          disabled={station.totalAvailable === 0}
                          className={`w-full py-3 rounded-[14px] text-white font-bold text-[13px] tracking-wide transition-all ${station.totalAvailable > 0 ? 'bg-gradient-to-r from-[#4a40e0] to-[#5D50D6] shadow-[0px_6px_15px_rgba(74,64,224,0.25)] hover:brightness-110 active:scale-95 cursor-pointer' : 'bg-surface-container-high text-outline cursor-not-allowed'}`}
                       >
@@ -328,7 +353,7 @@ export default function Dashboard() {
           </a>
           <a href="#" onClick={(e) => { e.preventDefault(); navigate('/my-cards'); }} className="flex flex-col items-center justify-center text-on-surface-variant hover:text-[#4a40e0] transition-colors py-1.5 px-3 cursor-pointer">
             <span className="material-symbols-outlined text-[20px] mb-1.5">account_balance_wallet</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">WALLET</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest">DOCARD</span>
           </a>
           <a className="flex flex-col items-center justify-center text-on-surface-variant hover:text-[#4a40e0] transition-colors py-1.5 px-3" href="#">
             <span className="material-symbols-outlined text-[20px] mb-1.5">person</span>

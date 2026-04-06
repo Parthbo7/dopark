@@ -11,6 +11,7 @@ export default function AdminSlots() {
   const [selectedSectionId, setSelectedSectionId] = useState('all');
   const [slots, setSlots] = useState([]);
   const [activeMenuSlotId, setActiveMenuSlotId] = useState(null);
+  const [activeBookings, setActiveBookings] = useState([]);
 
   // Verify Admin
   useEffect(() => {
@@ -36,6 +37,11 @@ export default function AdminSlots() {
             a.slot_number.localeCompare(b.slot_number, undefined, { numeric: true })
          );
          setSlots(sorted);
+      }
+
+      const { data: bookingsData } = await supabase.from('bookings').select('slot_id, end_time').eq('status', 'active');
+      if (bookingsData) {
+         setActiveBookings(bookingsData);
       }
       
       setLoading(false);
@@ -79,6 +85,30 @@ export default function AdminSlots() {
     setActiveMenuSlotId(null);
     
     await supabase.from('parking_slots').update({ is_occupied: isOccupied }).eq('slot_id', slotId);
+  };
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getRemainingTimeString = (slotId) => {
+    const activeBooking = activeBookings.find(b => b.slot_id === slotId);
+    if (!activeBooking || !activeBooking.end_time) return null;
+    
+    const end = new Date(activeBooking.end_time);
+    const diffMs = end - currentTime;
+    
+    if (diffMs <= 0) return 'Expired';
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    
+    if (hours > 0) return `${hours}h ${mins}m left`;
+    return `${mins}m left`;
   };
 
   // Filter logic
@@ -136,7 +166,7 @@ export default function AdminSlots() {
                 <span className="material-symbols-outlined text-[24px]">group</span>
                 <span className="text-[15px]">User Control</span>
              </button>
-              <button className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
+              <button onClick={() => navigate('/admin/security')} className="w-full flex items-center gap-4 px-5 py-4 text-[#A3AED0] hover:bg-[#F4F7FE] hover:text-[#2B3674] rounded-2xl font-bold transition-all text-left">
                 <span className="material-symbols-outlined text-[24px]">admin_panel_settings</span>
                 <span className="text-[15px]">Security</span>
              </button>
@@ -270,6 +300,12 @@ export default function AdminSlots() {
                               <span className="material-symbols-outlined text-[14px] text-[#A3AED0]">directions_car</span>
                           </div>
                           <span className="text-2xl font-black text-[#2B3674]">{slot.slot_number}</span>
+                          
+                          {slot.is_occupied && (
+                              <span className="text-[10px] font-bold text-[#A3AED0]">
+                                  {getRemainingTimeString(slot.slot_id) || '--'}
+                              </span>
+                          )}
                           
                           <button 
                             onClick={() => setActiveMenuSlotId(activeMenuSlotId === slot.slot_id ? null : slot.slot_id)}

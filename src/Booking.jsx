@@ -278,7 +278,10 @@ export default function Booking() {
                            spotName: specificSpot.slot_number, 
                            basement: specificBasement,
                            stationId: STATION_ID,
-                           stationName: STATION_NAME
+                           stationName: STATION_NAME,
+                           stationAddress: location.state?.stationAddress || 'Pune',
+                           stationLat: location.state?.stationLat,
+                           stationLng: location.state?.stationLng,
                        } 
                    });
                }} 

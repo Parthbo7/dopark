@@ -55,13 +55,17 @@ export default function History() {
     }
   };
 
-  const calculateDuration = (start, end) => {
-    if (!start || !end) return "--";
-    const diffMs = new Date(end) - new Date(start);
+  const calculateDuration = (start, end, status) => {
+    if (!start) return "--";
+    const startTimeDate = new Date(start);
+    const endTimeDate = (status === 'active' || !end) ? new Date() : new Date(end);
+    
+    const diffMs = Math.abs(endTimeDate - startTimeDate);
     if (diffMs < 60000) return "< 1 min";
-    const diffHrs = Math.floor(diffMs / 3600000);
-    const diffMins = Math.floor((diffMs % 3600000) / 60000);
-    return `${diffHrs}h ${diffMins}m`;
+    
+    const hrs = Math.floor(diffMs / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
   const formatTime = (timeString) => {
@@ -162,7 +166,9 @@ export default function History() {
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[9px] font-bold text-outline uppercase tracking-widest leading-none mb-0.5">Duration</span>
-                                    <span className={`font-bold text-[13px] ${item.status === 'completed' ? 'text-[#4a40e0]' : 'text-outline'} tracking-wide`}>{calculateDuration(item.start_time, item.end_time || item.start_time)}</span>
+                                    <span className={`font-bold text-[13px] ${item.status === 'active' ? 'text-[#ffb700]' : item.status === 'completed' ? 'text-[#4a40e0]' : 'text-outline'} tracking-wide`}>
+                                      {calculateDuration(item.start_time, item.end_time, item.status)}
+                                    </span>
                                 </div>
                             </div>
                         </div>

@@ -7,10 +7,16 @@ export default function ActiveBooking() {
   const [activeBooking, setActiveBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [timerLabel, setTimerLabel] = useState('Ongoing Parking Time');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   console.log("ACTIVE_BOOKING_V2_LOADED", activeBooking);
+
+  useEffect(() => {
+    const clock = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(clock);
+  }, []);
 
   useEffect(() => {
     fetchActiveBooking();
@@ -39,26 +45,31 @@ export default function ActiveBooking() {
     if (!activeBooking) return;
 
     const timer = setInterval(() => {
-      const start = new Date(activeBooking.start_time);
+      // Use wall-clock time we're already tracking
       const now = new Date();
+      const start = new Date(activeBooking.start_time);
+      const isStarted = now >= start;
       const dur = activeBooking.duration_hours || 1;
+      const totalDurationSec = dur * 3600;
       
-      let diffSec = 0;
-      if (now < start) {
-          // It's a future booking
-          diffSec = Math.floor((start - now) / 1000);
-          setTimerLabel('Starts in');
+      let displaySec = 0;
+      
+      if (!isStarted) {
+          // Future booking - countdown
+          displaySec = Math.floor((start - now) / 1000);
+          setTimerLabel('STARTS IN');
       } else {
-          // Session is active - timer should countdown the duration
-          const totalDurationSec = dur * 3600;
-          const elapsedFromStart = Math.floor((now - start) / 1000);
-          diffSec = Math.max(0, totalDurationSec - elapsedFromStart);
-          setTimerLabel('Ongoing Parking Time');
+          // ACTIVE Session - Count-up for ELAPSED time
+          displaySec = Math.floor((now - start) / 1000);
+          setTimerLabel('SESSION ELAPSED');
+          
+          // Optionally you can show remaining if you prefer, 
+          // let's show elapsed for active tracking.
       }
       
-      const hrs = Math.floor(diffSec / 3600);
-      const mins = Math.floor((diffSec % 3600) / 60);
-      const secs = diffSec % 60;
+      const hrs = Math.floor(displaySec / 3600);
+      const mins = Math.floor((displaySec % 3600) / 60);
+      const secs = displaySec % 60;
       
       setElapsedTime(
         `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
@@ -157,12 +168,30 @@ export default function ActiveBooking() {
           </button>
       </header>
 
-      <main className="flex-1 w-full max-w-md mx-auto px-6 pt-8 pb-10 flex flex-col items-center">
+      <main className="flex-1 w-full max-w-md mx-auto px-6 pt-6 pb-10 flex flex-col items-center">
         
+        {/* Wall Clock - Real Time */}
+        {!loading && (
+          <div className="w-full flex justify-between items-end mb-6 px-2">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-[#A3AED0] uppercase tracking-widest leading-none">Local Time</span>
+              <div className="text-[15px] font-black text-[#2B3674] mt-1">
+                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black text-[#A3AED0] uppercase tracking-widest leading-none">Date</span>
+              <div className="text-[15px] font-black text-[#2B3674] mt-1">
+                {currentTime.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
              <div className="flex flex-col items-center gap-4 py-20">
                 <div className="animate-spin w-12 h-12 border-4 border-[#5D50D6]/30 border-t-[#5D50D6] rounded-full"></div>
-                <span className="text-xs font-black text-[#A3AED0] uppercase tracking-widest">Querying Active Slots...</span>
+                <span className="text-xs font-black text-[#A3AED0] uppercase tracking-widest">Syncing with Cloud...</span>
              </div>
         ) : !activeBooking ? (
             <div className="bg-white rounded-[2.5rem] p-10 text-center flex flex-col items-center shadow-sm border border-outline-variant/10 w-full">
@@ -170,85 +199,102 @@ export default function ActiveBooking() {
                     <span className="material-symbols-outlined text-[40px]">notifications_off</span>
                 </div>
                 <h3 className="text-2xl font-black text-[#2B3674] mb-2">No Active Session</h3>
-                <p className="text-[#A3AED0] text-sm font-medium leading-relaxed px-4">There are currently no vehicles registered to an active parking spot.</p>
-                <button 
-                  onClick={() => navigate('/dashboard')}
-                  className="mt-8 bg-[#5D50D6] text-white px-10 py-4 rounded-2xl font-black text-sm shadow-lg shadow-[#5D50D6]/20 active:scale-95 transition-all">
-                    Find Parking Spot
-                </button>
+                <p className="text-[#A3AED0] text-sm font-medium leading-relaxed px-4">Start a new parking session to track your vehicle in real-time.</p>
+                
+                <div className="flex flex-col w-full gap-3 mt-8">
+                  <button 
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full bg-[#5D50D6] text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-[#5D50D6]/20 active:scale-95 transition-all">
+                      Find Parking Spot
+                  </button>
+                  <button 
+                    onClick={fetchActiveBooking}
+                    className="w-full bg-white text-[#5D50D6] py-4 rounded-2xl font-black text-sm border border-[#E9EDF7] active:scale-95 transition-all">
+                      Refresh Status
+                  </button>
+                </div>
             </div>
         ) : (
-            <div className="w-full space-y-6">
+            <div className="w-full space-y-5">
                 
-                {/* Timer Card */}
+                {/* Timer Card - MORE DYNAMIC */}
                 <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-outline-variant/10 flex flex-col items-center relative overflow-hidden">
-                    {/* Animated Pulsing Background */}
                     <div className="absolute inset-0 bg-gradient-to-br from-[#5D50D6]/5 to-transparent opacity-20"></div>
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-[#5D50D6]/10 rounded-full blur-[80px] -mr-10 -mt-10"></div>
                     
-                    <div className="relative z-10 flex flex-col items-center">
-                        <span className="text-[10px] font-black text-[#5D50D6] uppercase tracking-[0.2em] mb-4 bg-indigo-50 px-4 py-1.5 rounded-full inline-block">LIVE TRACKING</span>
-                        <div className="text-6xl font-black text-[#2B3674] tracking-tighter mb-2">{elapsedTime}</div>
+                    {/* Pulsing indicator loop */}
+                    <div className="absolute top-6 right-8 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
+                        <div className="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></div>
+                        <span className="text-[9px] font-black text-[#5D50D6] tracking-[0.1em]">LIVE</span>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col items-center mt-2">
+                        <div className="text-6xl font-black text-[#2B3674] tracking-tighter mb-2 font-mono">
+                          {elapsedTime}
+                        </div>
                         <p className="text-[#A3AED0] text-[11px] font-bold uppercase tracking-widest">{timerLabel}</p>
                     </div>
                 </div>
 
-                {/* Location Grid */}
+                {/* Info Grid - DB DATA (VISIBLE) */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10 flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest">Station ID</span>
-                        <div className="text-sm font-black text-[#2B3674] truncate">{activeBooking.parking_stations?.name}</div>
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10">
+                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest block mb-1">PARKING ZONE</span>
+                        <div className="text-sm font-black text-[#2B3674]">{activeBooking.parking_stations?.name || 'Loading...'}</div>
                     </div>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10 flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest">Slot No.</span>
-                        <div className="text-sm font-black text-[#2B3674]">{activeBooking.parking_slots?.slot_number}</div>
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10">
+                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest block mb-1">SLOT ID</span>
+                        <div className="text-sm font-black text-[#2B3674]">{activeBooking.parking_slots?.slot_number || 'N/A'}</div>
                     </div>
                 </div>
 
-                {/* Vehicle Details */}
+                {/* Detail List */}
                 <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-outline-variant/10">
                     <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-sm font-black text-[#2B3674] uppercase tracking-widest">Session Details</h4>
-                        <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
-                             <span className="text-[10px] font-black text-[#10B981] uppercase tracking-widest">Active</span>
-                        </div>
+                        <h4 className="text-sm font-black text-[#2B3674] uppercase tracking-widest">Vehicle Insights</h4>
+                        <span className="text-[10px] font-bold text-[#A3AED0]">BOOKING: #{activeBooking.booking_id?.slice(0, 8)}</span>
                     </div>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">Vehicle No.</span>
+                            <span className="text-sm font-medium text-[#A3AED0]">License Plate</span>
                             <span className="text-sm font-black text-[#2B3674]">{activeBooking.vehicle_number}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">Arrival Time</span>
-                            <span className="text-sm font-black text-[#2B3674]">{new Date(activeBooking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-sm font-medium text-[#A3AED0]">Entry Time</span>
+                            <span className="text-sm font-black text-[#2B3674]">
+                              {new Date(activeBooking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">Est. Price</span>
-                            <span className="text-sm font-black text-[#5D50D6]">₹40 / Hr</span>
+                            <span className="text-sm font-medium text-[#A3AED0]">Estimated Fee</span>
+                            <span className="text-sm font-black text-[#5D50D6]">₹40.00 / Hr</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                            <span className="text-sm font-bold text-[#2B3674]">Total Amount Due</span>
+                            <span className="text-lg font-black text-[#5D50D6]">₹{((activeBooking.duration_hours || 1) * 40).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Actions */}
-                <div className="pt-6 space-y-4">
+                <div className="pt-4 space-y-4">
                     <button 
                         onClick={handleCheckout}
                         disabled={checkoutLoading}
-                        className="w-full bg-[#ff5b5b] hover:bg-[#ff4545] text-white py-5 rounded-2xl font-black text-sm shadow-xl shadow-red-500/10 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50">
+                        className="w-full bg-[#ff5b5b] hover:bg-[#ff4545] text-white py-5 rounded-3xl font-black text-sm shadow-xl shadow-red-500/10 flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-50">
                         {checkoutLoading ? (
                              <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
                         ) : (
                             <>
-                                <span className="material-symbols-outlined text-[20px]">exit_to_app</span>
-                                CHECK OUT & PAY
+                                <span className="material-symbols-outlined text-[20px]">payment</span>
+                                COMPLETE PAYMENT
                             </>
                         )}
                     </button>
                     <button 
-                        className="w-full bg-white text-[#A3AED0] py-5 rounded-2xl font-black text-sm border border-[#E9EDF7] hover:border-[#5D50D6]/20 hover:text-[#2B3674] transition-all">
-                        EXTEND PARKING TIME
+                      onClick={() => navigate('/booking', { state: { extend: true, bookingId: activeBooking.booking_id } })}
+                      className="w-full bg-white text-[#5D50D6] py-5 rounded-3xl font-black text-sm border border-[#E9EDF7] hover:border-[#5D50D6]/20 hover:text-[#2B3674] transition-all">
+                        EXTEND DURATION
                     </button>
                 </div>
 
