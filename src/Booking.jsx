@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './supabase';
 
@@ -15,6 +15,15 @@ export default function Booking() {
   const [selectedSpotId, setSelectedSpotId] = useState(null);
   const [selectedBasementId, setSelectedBasementId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState('connecting'); // 'connecting', 'synced', 'error'
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,8 +95,14 @@ export default function Booking() {
   }, [vehicleType, STATION_ID]); // Re-fetch slots if vehicleType toggles
 
 
+  const slotsRef = useRef(slots);
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
+
   // Subscribe to real-time changes
   useEffect(() => {
+    setSyncStatus('connecting');
     const subscription = supabase
       .channel('public:parking_slots')
       .on(
@@ -100,32 +115,54 @@ export default function Booking() {
         },
         (payload) => {
           const updatedSlot = payload.new;
-          // Update the specific slot in our local state instantly
-          setSlots((currentSlots) => 
-            currentSlots.map((slot) => 
-               slot.slot_id === updatedSlot.slot_id ? updatedSlot : slot
-            )
-          );
-          
+          const currentSlots = slotsRef.current;
+          const slotToUpdate = currentSlots.find((s) => s.slot_id === updatedSlot.slot_id);
+          const slotLabel = slotToUpdate ? slotToUpdate.slot_number : `Spot #${updatedSlot.slot_id}`;
+
           // If the slot we currently have selected suddenly gets taken by someone else
           if (updatedSlot.slot_id === selectedSpotId && updatedSlot.is_occupied) {
             setSelectedSpotId(null);
-            alert("Sorry, the slot you were looking at was just booked by someone else!");
+            showToast(`Sorry, ${slotLabel} was just booked by another user!`, 'error');
+          } else {
+            if (updatedSlot.is_occupied) {
+              showToast(`${slotLabel} was reserved by another user.`, 'info');
+            } else {
+              showToast(`${slotLabel} is now vacant and available.`, 'success');
+            }
           }
+
+          // Update the specific slot in our local state instantly
+          setSlots((prev) => 
+            prev.map((slot) => 
+               slot.slot_id === updatedSlot.slot_id ? { ...slot, is_occupied: updatedSlot.is_occupied } : slot
+            )
+          );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setSyncStatus('synced');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setSyncStatus('error');
+        }
+      });
 
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [selectedSpotId]);
+  }, [selectedSpotId, STATION_ID]);
 
   const handleSpotClick = (id, isOccupied) => {
     if (!isOccupied) {
        setSelectedSpotId(id);
     }
   };
+
+  const checkPeakHour = () => {
+    const hour = new Date().getHours();
+    return (hour >= 9 && hour < 11) || (hour >= 17 && hour < 20);
+  };
+  const isPeak = checkPeakHour();
 
   // Derive counts dynamically
   const availableCount = slots.filter(s => !s.is_occupied).length;
@@ -138,11 +175,28 @@ export default function Booking() {
         <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition text-slate-500 cursor-pointer flex items-center justify-center">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <div>
-          <h2 className="text-xl font-extrabold text-on-surface tracking-tight">{STATION_NAME}</h2>
-          <div className="flex items-center gap-1 text-slate-400 text-xs font-semibold mt-0.5">
-            <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-            <span>{location.state?.stationAddress || 'Lower Parel, Mumbai'}</span>
+        <div className="flex-grow flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-extrabold text-on-surface tracking-tight">{STATION_NAME}</h2>
+              {/* Live Sync Badge */}
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border transition-all ${
+                syncStatus === 'synced' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30' :
+                syncStatus === 'error' ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/30' :
+                'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30 animate-pulse'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  syncStatus === 'synced' ? 'bg-emerald-500' :
+                  syncStatus === 'error' ? 'bg-rose-500' :
+                  'bg-amber-500 animate-ping'
+                }`}></span>
+                {syncStatus === 'synced' ? 'Live' : syncStatus === 'error' ? 'Offline' : 'Syncing'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400 text-xs font-semibold mt-0.5">
+              <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+              <span>{location.state?.stationAddress || 'Pune'}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -178,6 +232,24 @@ export default function Booking() {
                   <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>bar_chart</span>
               </div>
           </div>
+
+          {/* Peak hour dynamic pricing badge */}
+          {isPeak && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-sm shrink-0">
+                  <span className="material-symbols-outlined text-lg">bolt</span>
+                </div>
+                <div>
+                  <span className="text-amber-600 dark:text-amber-400 text-[10px] font-extrabold uppercase tracking-widest block font-body">Peak Hour Dynamic Pricing</span>
+                  <span className="text-amber-700 dark:text-amber-300 font-bold text-xs font-body">Surge rate active (1.5x)</span>
+                </div>
+              </div>
+              <span className="bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider font-body shrink-0">
+                1.5x ⚡
+              </span>
+            </div>
+          )}
 
           {/* Floors/Basements Selector */}
           <div className="space-y-3">
@@ -290,6 +362,16 @@ export default function Booking() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification overlay */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#2B3674] text-white px-6 py-3 rounded-full text-xs font-black shadow-xl flex items-center gap-2 border border-indigo-400/20">
+          <span className="material-symbols-outlined text-sm text-[#4a40e0]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+          </span>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

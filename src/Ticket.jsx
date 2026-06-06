@@ -1,12 +1,23 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import * as htmlToImage from 'html-to-image';
 import download from 'downloadjs';
+import { QRCodeSVG } from 'qrcode.react';
+
 
 export default function Ticket() {
   const navigate = useNavigate();
   const location = useLocation();
   const ticketRef = useRef(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  };
 
   const handleDownload = useCallback(() => {
     if (ticketRef.current === null) return;
@@ -14,11 +25,43 @@ export default function Ticket() {
     htmlToImage.toPng(ticketRef.current, { cacheBust: true, backgroundColor: '#F8F9FE' })
       .then((dataUrl) => {
         download(dataUrl, `parking-ticket-${new Date().getTime()}.png`);
+        showToast('Ticket image downloaded successfully!');
       })
       .catch((err) => {
         console.error('oops, something went wrong!', err);
       });
   }, [ticketRef]);
+
+  const handleShare = useCallback(() => {
+    if (ticketRef.current === null) return;
+    
+    const qrText = `Booking ID: ${bookingId}\nStation: ${stationName}\nSpot: ${displaySpot}\nVehicle: ${displayVehicle} (${vehicleNumber})`;
+    
+    if (navigator.share) {
+      htmlToImage.toBlob(ticketRef.current, { cacheBust: true, backgroundColor: '#F8F9FE' })
+        .then((blob) => {
+          const file = new File([blob], `parking-ticket-${bookingId}.png`, { type: 'image/png' });
+          navigator.share({
+            files: [file],
+            title: 'Do Parking Ticket',
+            text: qrText,
+          }).catch((err) => {
+            console.error('Error sharing:', err);
+          });
+        })
+        .catch((err) => {
+          console.error('Error rendering blob for share:', err);
+          navigator.share({
+            title: 'Do Parking Ticket',
+            text: qrText,
+          }).catch((err) => console.error(err));
+        });
+    } else {
+      navigator.clipboard.writeText(qrText);
+      showToast('Booking details copied to clipboard!');
+    }
+  }, [ticketRef, bookingId, stationName, displaySpot, displayVehicle, vehicleNumber]);
+
 
   const {
     vehicleType = '4_wheeler',
@@ -33,7 +76,8 @@ export default function Ticket() {
     exitTime,
     bookingId: realBookingId,
     stationLat,
-    stationLng
+    stationLng,
+    vehicleNumber = 'MH 12 AB 1234'
   } = location.state || {};
 
   const displayVehicle = vehicleType === '2_wheeler' ? '2 Wheeler' : '4 Wheeler';
@@ -140,6 +184,37 @@ export default function Ticket() {
                   <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">EXIT</span>
                   <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{exitDisplay}</span>
                 </div>
+
+                <div className="flex flex-col col-span-2">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">VEHICLE PLATE</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200 uppercase tracking-wider font-mono">{vehicleNumber}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">PAYMENT</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{paymentMethod}</span>
+                </div>
+              </div>
+
+              {/* Dashed Separator */}
+              <div className="relative">
+                <div className="absolute left-0 -ml-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="absolute right-0 -mr-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="w-[90%] mx-auto border-t-[2px] border-dashed border-slate-200/80 dark:border-slate-800"></div>
+              </div>
+
+              {/* QR Code Section */}
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-100/50 dark:border-slate-800/40">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                  <QRCodeSVG 
+                    value={JSON.stringify({ bookingId, station: stationName, spot: displaySpot, vehicle: displayVehicle, vehicleNumber })} 
+                    size={120}
+                    level="H"
+                    includeMargin={false}
+                    fgColor="#2B3674"
+                  />
+                </div>
+                <span className="text-[10px] font-black tracking-widest text-[#2B3674] dark:text-slate-200 uppercase mt-3">ENTRY / EXIT PASS</span>
+                <span className="text-[8px] font-semibold text-slate-400 mt-0.5 text-center">Scan this QR code at the parking barrier gates</span>
               </div>
 
               {/* Dashed Separator */}
@@ -188,13 +263,22 @@ export default function Ticket() {
             View Directions
           </button>
           
-          <button 
-            onClick={handleDownload}
-            className="w-full py-4 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[13px] rounded-xl flex items-center justify-center gap-2 border-2 border-[#4a40e0]/10 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-lg">download</span>
-            Download Ticket Image
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={handleDownload}
+              className="flex-1 py-4 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[13px] rounded-xl flex items-center justify-center gap-2 border-2 border-[#4a40e0]/10 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">download</span>
+              Download
+            </button>
+            <button 
+              onClick={handleShare}
+              className="flex-1 py-4 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[13px] rounded-xl flex items-center justify-center gap-2 border-2 border-[#4a40e0]/10 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">share</span>
+              Share Pass
+            </button>
+          </div>
 
           <button 
             onClick={() => navigate('/dashboard')}
@@ -205,6 +289,14 @@ export default function Ticket() {
         </div>
 
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#2B3674] text-white px-6 py-3 rounded-full text-xs font-black shadow-xl flex items-center gap-2 border border-indigo-400/20">
+          <span className="material-symbols-outlined text-sm text-[#4a40e0]" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,92 @@ export default function MyCards() {
   const [lowBalAlert, setLowBalAlert] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const [vehicles, setVehicles] = useState(() => {
+    const saved = localStorage.getItem('doparking_vehicles');
+    if (saved) return JSON.parse(saved);
+    const initial = [];
+    if (profile?.vehicle_number) {
+      initial.push({
+        id: 'default',
+        plate: profile.vehicle_number,
+        type: profile.vehicle_type || '4_wheeler',
+        nickname: 'Primary Vehicle',
+        isPrimary: true
+      });
+    } else {
+      initial.push({
+        id: 'default',
+        plate: 'MH 12 AB 1234',
+        type: '4_wheeler',
+        nickname: 'My SUV',
+        isPrimary: true
+      });
+    }
+    localStorage.setItem('doparking_vehicles', JSON.stringify(initial));
+    return initial;
+  });
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newPlate, setNewPlate] = useState('');
+  const [newType, setNewType] = useState('4_wheeler');
+  const [newNickname, setNewNickname] = useState('');
+
+  const handleAddVehicle = (e) => {
+    e.preventDefault();
+    if (!newPlate.trim()) return;
+    const newVehicle = {
+      id: 'v_' + Date.now(),
+      plate: newPlate.toUpperCase(),
+      type: newType,
+      nickname: newNickname || `Vehicle ${vehicles.length + 1}`,
+      isPrimary: vehicles.length === 0
+    };
+    const updated = [...vehicles, newVehicle];
+    setVehicles(updated);
+    localStorage.setItem('doparking_vehicles', JSON.stringify(updated));
+    setIsAddModalOpen(false);
+    setNewPlate('');
+    setNewNickname('');
+  };
+
+  const handleSetPrimary = (id) => {
+    const updated = vehicles.map(v => ({
+      ...v,
+      isPrimary: v.id === id
+    }));
+    setVehicles(updated);
+    localStorage.setItem('doparking_vehicles', JSON.stringify(updated));
+    
+    const primary = updated.find(v => v.isPrimary);
+    if (primary && profile) {
+      supabase.from('profiles').update({
+        vehicle_number: primary.plate,
+        vehicle_type: primary.type
+      }).eq('id', profile.id).then(({ error }) => {
+        if (error) console.error(error);
+        if (fetchProfileAndCard) fetchProfileAndCard();
+      });
+    }
+  };
+
+  const handleDeleteVehicle = (id) => {
+    if (vehicles.length <= 1) {
+      alert("You must keep at least one vehicle!");
+      return;
+    }
+    const target = vehicles.find(v => v.id === id);
+    let updated = vehicles.filter(v => v.id !== id);
+    if (target?.isPrimary) {
+      updated[0].isPrimary = true;
+      setVehicles(updated);
+      localStorage.setItem('doparking_vehicles', JSON.stringify(updated));
+      handleSetPrimary(updated[0].id);
+    } else {
+      setVehicles(updated);
+      localStorage.setItem('doparking_vehicles', JSON.stringify(updated));
+    }
+  };
+
   const vehicleNum = profile?.vehicle_number || 'MH12 AB 1234';
   const balance = cardData?.balance || 0;
   const autoPayEnabled = cardData?.auto_pay_enabled || false;
@@ -133,14 +219,75 @@ export default function MyCards() {
             </div>
           </div>
 
-          {/* Vehicle Switch Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button className="flex-grow py-3.5 rounded-xl border-2 border-[#4a40e0]/10 dark:border-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[12px] uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all active:scale-[0.98] cursor-pointer">
-              Switch Vehicle
-            </button>
-            <button className="flex-grow py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 font-extrabold text-[12px] uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all active:scale-[0.98] cursor-pointer">
-              Add New Vehicle
-            </button>
+          {/* Vehicles List */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between pl-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Manage Vehicles</span>
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="text-xs font-bold text-[#4a40e0] flex items-center gap-1 hover:underline cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">add</span>
+                Add New
+              </button>
+            </div>
+            
+            <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
+              {vehicles.map((v) => (
+                <div 
+                  key={v.id} 
+                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    v.isPrimary 
+                      ? 'bg-indigo-50/20 border-[#4a40e0]/20 dark:bg-indigo-950/10 dark:border-[#4a40e0]/30' 
+                      : 'bg-slate-50/50 border-slate-100 dark:bg-slate-800/20 dark:border-slate-800/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                      v.isPrimary 
+                        ? 'bg-[#4a40e0]/10 text-[#4a40e0] border-[#4a40e0]/20' 
+                        : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-850 dark:border-slate-700/60'
+                    }`}>
+                      <span className="material-symbols-outlined text-lg">
+                        {v.type === '2_wheeler' ? 'two_wheeler' : 'directions_car'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-on-surface truncate max-w-[120px]">{v.nickname}</span>
+                        {v.isPrimary && (
+                          <span className="bg-[#4a40e0]/10 text-[#4a40e0] text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-450 tracking-wider block mt-0.5 uppercase">
+                        {v.plate}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {!v.isPrimary && (
+                      <button 
+                        onClick={() => handleSetPrimary(v.id)}
+                        className="px-2.5 py-1 text-[#4a40e0] hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition text-[11px] font-black cursor-pointer border border-[#4a40e0]/10"
+                        title="Set as Active Primary DoCard Vehicle"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handleDeleteVehicle(v.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-505 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition flex items-center justify-center cursor-pointer"
+                      title="Remove Vehicle"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -222,6 +369,109 @@ export default function MyCards() {
         </div>
 
       </div>
+
+      {/* Add Vehicle Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsAddModalOpen(false)}
+          ></div>
+          
+          <form 
+            onSubmit={handleAddVehicle}
+            className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-2xl p-6 md:p-8 max-w-sm w-full relative z-10 animate-fade-in font-body"
+          >
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800/40">
+              <div>
+                <h3 className="text-lg font-black text-[#2B3674] dark:text-slate-200 tracking-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#4a40e0]">directions_car</span>
+                  Add Vehicle
+                </h3>
+                <p className="text-slate-400 text-xs font-semibold mt-1">Register a new vehicle in your DoCard profile</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-lg transition flex items-center justify-center cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1.5">Vehicle Type</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewType('4_wheeler')}
+                    className={`flex-1 py-3.5 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-1 ${
+                      newType === '4_wheeler'
+                        ? 'bg-[#4a40e0] border-[#3b32b3] text-white shadow-md'
+                        : 'bg-white dark:bg-slate-800 text-slate-605 dark:text-slate-350 border-slate-200 dark:border-slate-700/60'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined">directions_car</span>
+                    4 Wheeler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewType('2_wheeler')}
+                    className={`flex-1 py-3.5 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-1 ${
+                      newType === '2_wheeler'
+                        ? 'bg-[#4a40e0] border-[#3b32b3] text-white shadow-md'
+                        : 'bg-white dark:bg-slate-800 text-slate-605 dark:text-slate-350 border-slate-200 dark:border-slate-700/60'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined">two_wheeler</span>
+                    2 Wheeler
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1.5">License Plate Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. MH 12 AB 1234"
+                  value={newPlate}
+                  onChange={(e) => setNewPlate(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm font-semibold rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#4a40e0] uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1.5">Nickname / Label</label>
+                <input
+                  type="text"
+                  placeholder="e.g. My Tesla, Dad's Scooter"
+                  value={newNickname}
+                  onChange={(e) => setNewNickname(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm font-semibold rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#4a40e0]"
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="flex-1 py-3.5 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-xl transition text-xs font-black tracking-wider uppercase cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3.5 bg-[#4a40e0] hover:bg-[#3b32b3] text-white rounded-xl shadow-md transition text-xs font-black tracking-wider uppercase cursor-pointer"
+              >
+                Add Vehicle
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
