@@ -5,7 +5,17 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    min-height: max(884px, 100dvh);
+    min-height: 100dvh;
+    @apply bg-surface text-on-surface antialiased;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+  }
+  h2 {
+    font-size: clamp(1.25rem, 2.75vw, 2rem);
+  }
+  h3 {
+    font-size: clamp(1.125rem, 2.25vw, 1.5rem);
   }
 }
 
@@ -20,4 +30,19 @@
       background: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(12px);
   }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(74, 64, 224, 0.15);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 64, 224, 0.3);
+  }
 }
+

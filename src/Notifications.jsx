@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabase';
 import { fetchNotifications, markAsRead, markAllAsRead, subscribeToNotifications } from './notificationService';
 
-// Icon + color mapping per notification type
 const TYPE_CONFIG = {
-  booking:    { color: 'bg-indigo-50  text-[#4a40e0]', ring: 'border-[#4a40e0]/20' },
-  payment:    { color: 'bg-emerald-50 text-emerald-600', ring: 'border-emerald-200/40' },
-  session:    { color: 'bg-amber-50   text-amber-600', ring: 'border-amber-200/40' },
-  entry_exit: { color: 'bg-sky-50     text-sky-600', ring: 'border-sky-200/40' },
-  alert:      { color: 'bg-red-50     text-red-500', ring: 'border-red-200/40' },
+  booking:    { color: 'bg-indigo-50 dark:bg-indigo-950/20 text-[#4a40e0] dark:text-indigo-400', ring: 'border-[#4a40e0]/20' },
+  payment:    { color: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400', ring: 'border-emerald-200/40' },
+  session:    { color: 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-450', ring: 'border-amber-200/40' },
+  entry_exit: { color: 'bg-sky-50 dark:bg-sky-950/20 text-sky-600 dark:text-sky-400', ring: 'border-sky-200/40' },
+  alert:      { color: 'bg-rose-50 dark:bg-rose-950/20 text-rose-500 dark:text-rose-450', ring: 'border-rose-200/40' },
 };
 
 function timeAgo(dateStr) {
@@ -34,7 +33,6 @@ export default function Notifications() {
   const tabs = ['All', 'Booking', 'Payment', 'Session', 'Alerts'];
   const tabTypeMap = { All: null, Booking: 'booking', Payment: 'payment', Session: 'session', Alerts: ['alert', 'entry_exit'] };
 
-  // Fetch on mount
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -46,7 +44,6 @@ export default function Notifications() {
     load();
   }, []);
 
-  // Realtime subscription
   useEffect(() => {
     let channel;
     const setup = async () => {
@@ -76,7 +73,6 @@ export default function Notifications() {
     if (notif.action_url) navigate(notif.action_url);
   };
 
-  // Filter
   const filtered = notifications.filter(n => {
     const mapping = tabTypeMap[activeTab];
     if (!mapping) return true;
@@ -84,10 +80,10 @@ export default function Notifications() {
     return n.type === mapping;
   });
 
-  // Group by date
   const today = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
   const grouped = { today: [], yesterday: [], older: [] };
+  
   filtered.forEach(n => {
     const d = new Date(n.created_at).toDateString();
     if (d === today) grouped.today.push(n);
@@ -96,92 +92,102 @@ export default function Notifications() {
   });
 
   return (
-    <div className="bg-[#F8F9FE] min-h-screen text-[#1c1b1f] flex flex-col font-body pb-24">
-
-      {/* ── HEADER ──────────────────────────────────── */}
-      <header className="bg-gradient-to-r from-[#5D50D6] to-[#6C63FF] rounded-b-[2rem] pt-6 pb-10 px-5 text-white relative z-10 w-full max-w-md mx-auto md:max-w-2xl shadow-lg">
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-white/10 rounded-xl transition">
-            <span className="material-symbols-outlined text-white">arrow_back</span>
-          </button>
-          <h1 className="text-[17px] font-extrabold tracking-tight">Notifications</h1>
-          <button onClick={handleMarkAllRead} className="p-2 hover:bg-white/10 rounded-xl transition" title="Mark all read">
-            <span className="material-symbols-outlined text-white text-xl">done_all</span>
-          </button>
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-6 lg:p-8 flex flex-col font-body">
+      
+      {/* Title Header with Mark Read Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-5 border-b border-slate-100 dark:border-slate-800/40">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#4a40e0] tracking-tight flex items-center gap-2">
+            Notifications
+            {unreadCount > 0 && (
+              <span className="text-[10px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/10 px-2 py-0.5 rounded-full">
+                {unreadCount} UNREAD
+              </span>
+            )}
+          </h2>
+          <p className="text-slate-400 text-xs font-semibold mt-1">Real-time alerts, gate entries, and payment details</p>
         </div>
+
         {unreadCount > 0 && (
-          <div className="mt-3 text-center">
-            <span className="bg-white/20 text-white text-[11px] font-bold px-3 py-1 rounded-full">{unreadCount} unread</span>
-          </div>
+          <button 
+            onClick={handleMarkAllRead} 
+            className="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-[#4a40e0] dark:text-indigo-400 rounded-xl transition text-xs font-black flex items-center gap-2 cursor-pointer w-fit"
+          >
+            <span className="material-symbols-outlined text-base">done_all</span>
+            Mark All as Read
+          </button>
         )}
-      </header>
+      </div>
 
-      {/* ── MAIN ──────────────────────────────────── */}
-      <main className="flex-1 w-full max-w-md mx-auto md:max-w-2xl px-5 -mt-5 relative z-20">
+      {/* Tab Selectors */}
+      <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-3 mb-6 shrink-0">
+        {tabs.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`whitespace-nowrap px-4 py-2 rounded-xl font-extrabold text-xs transition-all ${
+              activeTab === tab 
+                ? 'bg-[#4a40e0] text-white shadow-md shadow-[#4a40e0]/10' 
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/60 cursor-pointer'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 pt-1 mb-4">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`whitespace-nowrap px-4 py-2 rounded-full font-bold text-[12px] transition-all ${activeTab === tab ? 'bg-[#4a40e0] text-white shadow-md shadow-[#4a40e0]/20' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
+      {/* Main List */}
+      <div className="flex-1">
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#4a40e0]/30 border-t-[#4a40e0]"></div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 flex flex-col items-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <span className="material-symbols-outlined text-slate-300 text-3xl">notifications_off</span>
+          <div className="py-16 flex flex-col items-center max-w-md mx-auto text-center">
+            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700/30">
+              <span className="material-symbols-outlined text-slate-400 text-2xl">notifications_off</span>
             </div>
-            <span className="text-slate-400 text-sm font-medium">No notifications yet</span>
+            <h3 className="font-extrabold text-on-surface text-base">All Caught Up!</h3>
+            <p className="text-slate-400 text-xs font-semibold mt-1">No notifications found for this category.</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6 max-w-4xl">
             {/* TODAY */}
             {grouped.today.length > 0 && (
-              <>
-                <span className="text-[10px] font-extrabold text-slate-400 tracking-widest uppercase pl-1 block">TODAY</span>
-                {grouped.today.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
-              </>
+              <div className="space-y-3">
+                <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase pl-1 block">TODAY</span>
+                <div className="space-y-3">
+                  {grouped.today.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
+                </div>
+              </div>
             )}
+            
             {/* YESTERDAY */}
             {grouped.yesterday.length > 0 && (
-              <>
-                <span className="text-[10px] font-extrabold text-slate-400 tracking-widest uppercase pl-1 block pt-2">YESTERDAY</span>
-                {grouped.yesterday.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
-              </>
+              <div className="space-y-3">
+                <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase pl-1 block pt-2">YESTERDAY</span>
+                <div className="space-y-3">
+                  {grouped.yesterday.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
+                </div>
+              </div>
             )}
+            
             {/* OLDER */}
             {grouped.older.length > 0 && (
-              <>
-                <span className="text-[10px] font-extrabold text-slate-400 tracking-widest uppercase pl-1 block pt-2">EARLIER</span>
-                {grouped.older.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
-              </>
+              <div className="space-y-3">
+                <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase pl-1 block pt-2">EARLIER</span>
+                <div className="space-y-3">
+                  {grouped.older.map(n => <NotifCard key={n.id} n={n} onClick={handleNotificationClick} navigate={navigate} />)}
+                </div>
+              </div>
             )}
           </div>
         )}
-      </main>
-
-      {/* ── BOTTOM NAV ──────────────────────────────── */}
-      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-sm rounded-2xl bg-white/95 backdrop-blur-xl z-50 flex justify-around items-center px-2 py-2.5 shadow-[0px_12px_30px_rgba(74,64,224,0.12)] border border-slate-100">
-        <NavBtn icon="home" label="HOME" onClick={() => navigate('/dashboard')} />
-        <NavBtn icon="local_parking" label="PARKING" onClick={() => navigate('/dashboard')} />
-        <NavBtn icon="notifications" label="ALERTS" active onClick={() => {}} />
-        <NavBtn icon="person" label="PROFILE" onClick={() => navigate('/dashboard')} />
-      </nav>
+      </div>
     </div>
   );
 }
 
-// ── Notification Card Component ─────────────────────────────────
 function NotifCard({ n, onClick, navigate }) {
   const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.alert;
   const isUnread = n.status === 'unread';
@@ -189,10 +195,14 @@ function NotifCard({ n, onClick, navigate }) {
   return (
     <div
       onClick={() => onClick(n)}
-      className={`rounded-2xl p-4 flex gap-3.5 cursor-pointer transition-all border ${isUnread ? `bg-white shadow-sm ${cfg.ring}` : 'bg-white/60 border-transparent'} hover:shadow-md active:scale-[0.99]`}
+      className={`rounded-2xl p-4 flex gap-4 cursor-pointer transition-all border ${
+        isUnread 
+          ? `bg-[#4a40e0]/[0.02] dark:bg-[#4a40e0]/5 shadow-sm border-indigo-150/50 dark:border-indigo-950` 
+          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30'
+      } hover:shadow-md active:scale-[0.99]`}
     >
-      {/* Icon */}
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${cfg.color}`}>
+      {/* Icon Circle */}
+      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${cfg.color} border border-slate-100 dark:border-slate-800/40 shadow-sm`}>
         <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
           {n.icon || 'info'}
         </span>
@@ -200,39 +210,31 @@ function NotifCard({ n, onClick, navigate }) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-start gap-2 mb-0.5">
-          <h3 className={`text-[14px] leading-tight pr-1 ${isUnread ? 'font-bold text-[#1c1b1f]' : 'font-semibold text-slate-600'}`}>
+        <div className="flex justify-between items-start gap-2 mb-1">
+          <h3 className={`text-[13.5px] leading-tight pr-1 ${isUnread ? 'font-black text-[#2B3674] dark:text-slate-200' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
             {n.title}
           </h3>
-          <span className={`text-[9px] font-bold uppercase tracking-wider whitespace-nowrap mt-0.5 ${isUnread ? 'text-[#4a40e0]' : 'text-slate-400'}`}>
+          <span className={`text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap mt-0.5 shrink-0 ${isUnread ? 'text-[#4a40e0] dark:text-indigo-400' : 'text-slate-400'}`}>
             {timeAgo(n.created_at)}
           </span>
         </div>
-        <p className="text-[12px] text-slate-500 leading-relaxed">{n.message}</p>
+        <p className="text-xs text-slate-400 font-semibold leading-relaxed">{n.message}</p>
 
-        {/* Action button for payment receipts */}
         {n.type === 'payment' && n.action_url && (
           <button
             onClick={(e) => { e.stopPropagation(); navigate(n.action_url); }}
-            className="mt-2 text-[#4a40e0] font-bold text-[10px] uppercase tracking-widest hover:underline"
+            className="mt-2.5 text-[#4a40e0] dark:text-indigo-400 font-black text-[9px] uppercase tracking-widest hover:underline flex items-center gap-0.5 cursor-pointer"
           >
-            VIEW RECEIPT →
+            View Receipt
+            <span className="material-symbols-outlined text-[12px] font-black">arrow_right_alt</span>
           </button>
         )}
       </div>
 
-      {/* Unread dot */}
-      {isUnread && <div className="w-2.5 h-2.5 bg-[#4a40e0] rounded-full shrink-0 mt-1.5"></div>}
+      {/* Unread marker dot */}
+      {isUnread && (
+        <div className="w-2.5 h-2.5 bg-[#4a40e0] rounded-full shrink-0 mt-2 shadow-sm shadow-[#4a40e0]/25 animate-pulse"></div>
+      )}
     </div>
-  );
-}
-
-// ── Bottom Nav Button ───────────────────────────────────────────
-function NavBtn({ icon, label, active, onClick }) {
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition ${active ? 'text-[#4a40e0] bg-indigo-50' : 'text-slate-400 hover:text-slate-600'}`}>
-      <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: active ? "'FILL' 1" : "'wght' 500" }}>{icon}</span>
-      <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
-    </button>
   );
 }

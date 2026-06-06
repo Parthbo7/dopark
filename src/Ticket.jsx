@@ -51,154 +51,160 @@ export default function Ticket() {
   const paymentIcon = paymentMethod === 'UPI' ? 'payments' : paymentMethod === 'Credit/Debit' ? 'credit_card' : 'account_balance_wallet';
 
   return (
-    <div className="bg-[#F8F9FE] min-h-screen text-[#1c1b1f] flex flex-col font-body">
-
-      {/* ── HEADER ──────────────────────────────── */}
-      <header className="flex items-center px-5 py-5 w-full max-w-md mx-auto md:max-w-2xl">
-        <button onClick={() => navigate('/dashboard')} className="p-2 text-[#4a40e0] hover:bg-slate-50 rounded-xl transition cursor-pointer">
-          <span className="material-symbols-outlined text-xl">arrow_back</span>
-        </button>
-        <h1 className="text-[17px] font-extrabold mx-auto -ml-2 tracking-tight">Booking Confirmed</h1>
-        <div className="w-10"></div>
-      </header>
-
-      {/* ── MAIN CONTENT ────────────────────────── */}
-      <main className="flex-1 w-full max-w-md mx-auto md:max-w-2xl px-5 flex flex-col items-center pb-28">
-
-        {/* ── Celebration ─────────────────────── */}
-        <div className="flex flex-col items-center mt-2 mb-6 text-center">
-          <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-indigo-100">
-            🎉
-          </div>
-          <h2 className="text-2xl font-black text-[#1c1b1f] mb-1.5 tracking-tight">Congratulations!</h2>
-          <p className="text-slate-500 text-sm font-medium">Your parking has been successfully booked</p>
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-6 lg:p-8 flex flex-col font-body">
+      
+      {/* Title Header */}
+      <div className="mb-8 pb-5 border-b border-slate-100 dark:border-slate-800/40 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#4a40e0] tracking-tight">Booking Receipt</h2>
+          <p className="text-slate-400 text-xs font-semibold mt-1">Details of your secured parking spot reservation</p>
         </div>
+        
+        <button 
+          onClick={() => navigate('/dashboard')} 
+          className="px-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-sm">home</span>
+          Dashboard
+        </button>
+      </div>
 
-        {/* ── TICKET CARD (REF ATTACHED) ───────── */}
-        <div ref={ticketRef} className="w-full bg-white rounded-[1.75rem] shadow-[0px_12px_40px_rgba(74,64,224,0.08)] relative overflow-hidden border border-slate-100 p-1">
-          <div className="w-full bg-white rounded-[1.5rem] relative overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Column: Celebration Header and Ticket Visual */}
+        <div className="lg:col-span-7 flex flex-col items-center">
+          
+          {/* Celebration */}
+          <div className="flex flex-col items-center mb-6 text-center">
+            <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 rounded-full flex items-center justify-center text-3xl mb-3 shadow-sm border border-emerald-100 dark:border-emerald-900/10">
+              🎉
+            </div>
+            <h3 className="text-lg font-black text-[#2B3674] dark:text-slate-200 tracking-tight">Booking Confirmed!</h3>
+            <p className="text-slate-400 text-xs font-semibold mt-1">Your parking session has been successfully recorded</p>
+          </div>
 
-          {/* Top Section — Venue */}
-          <div className="p-6 pb-5">
-            <div className="flex justify-between items-start mb-1">
-              <div>
-                <h3 className="text-xl font-black text-[#1c1b1f] tracking-tight mb-1">{stationName}</h3>
-                <div className="flex items-center gap-1.5 text-slate-400">
-                  <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-                  <span className="text-[11px] uppercase tracking-widest font-bold">{stationAddress}</span>
+          {/* Ticket Card */}
+          <div className="w-full max-w-[420px] bg-slate-50 dark:bg-slate-800/40 rounded-[2rem] shadow-[0px_10px_30px_rgba(74,64,224,0.04)] relative overflow-hidden border border-slate-100 dark:border-slate-800/30 p-1">
+            <div ref={ticketRef} className="w-full bg-white dark:bg-slate-900 rounded-[1.8rem] relative overflow-hidden p-6 space-y-6">
+              
+              {/* Venue Info */}
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <h4 className="text-base font-black text-[#2B3674] dark:text-slate-200 tracking-tight mb-1">{stationName}</h4>
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold">{stationAddress}</span>
+                  </div>
+                </div>
+                <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border border-emerald-100 dark:border-emerald-905/30 h-fit shrink-0">
+                  Active
+                </span>
+              </div>
+
+              {/* Dashed Separator */}
+              <div className="relative">
+                <div className="absolute left-0 -ml-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="absolute right-0 -mr-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="w-[90%] mx-auto border-t-[2px] border-dashed border-slate-200/80 dark:border-slate-800"></div>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-3 gap-y-5 gap-x-2.5">
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">SLOT</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{displaySpot}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">VEHICLE</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px] text-[#4a40e0]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {vehicleType === '2_wheeler' ? 'two_wheeler' : 'directions_car'}
+                    </span>
+                    {displayVehicle}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">DATE</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">Today</span>
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">DURATION</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{duration}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">ENTRY</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{entryDisplay}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] uppercase tracking-wider font-bold text-slate-400 mb-1">EXIT</span>
+                  <span className="text-xs font-black text-[#2B3674] dark:text-slate-200">{exitDisplay}</span>
                 </div>
               </div>
-              <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-emerald-100 h-fit">
-                Active
-              </span>
-            </div>
-          </div>
 
-          {/* Dashed Separator with cutouts */}
-          <div className="relative">
-            <div className="absolute left-0 -ml-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8F9FE] rounded-full"></div>
-            <div className="absolute right-0 -mr-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8F9FE] rounded-full"></div>
-            <div className="w-[85%] mx-auto border-t-[2px] border-dashed border-slate-200/60"></div>
-          </div>
-
-          {/* Details Grid */}
-          <div className="p-6 pt-5">
-            <div className="grid grid-cols-3 gap-y-6 gap-x-3">
-              {/* Row 1 */}
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">SLOT</span>
-                <span className="text-[15px] font-black text-[#1c1b1f]">{displaySpot}</span>
+              {/* Dashed Separator */}
+              <div className="relative">
+                <div className="absolute left-0 -ml-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="absolute right-0 -mr-9 top-1/2 -translate-y-1/2 w-6 h-6 bg-slate-50 dark:bg-slate-800/80 rounded-full border border-slate-100 dark:border-slate-800/30"></div>
+                <div className="w-[90%] mx-auto border-t-[2px] border-dashed border-slate-200/80 dark:border-slate-800"></div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">VEHICLE</span>
-                <span className="text-[15px] font-black text-[#1c1b1f] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px] text-[#4a40e0]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {vehicleType === '2_wheeler' ? 'two_wheeler' : 'directions_car'}
+
+              {/* Invoice Breakdown */}
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 space-y-2.5 border border-slate-100/50 dark:border-slate-800/55 text-xs font-semibold text-slate-400">
+                <div className="flex justify-between items-center">
+                  <span>Booking ID</span>
+                  <span className="font-extrabold text-[#2B3674] dark:text-slate-200">{bookingId}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Paid via</span>
+                  <span className="font-extrabold text-[#2B3674] dark:text-slate-200 flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700/60 text-[11px]">
+                    <span className="material-symbols-outlined text-[13px] text-[#4a40e0] dark:text-indigo-400" style={{ fontVariationSettings: "'FILL' 1" }}>{paymentIcon}</span>
+                    {paymentMethod === 'Primary Card' ? 'DoCard' : paymentMethod}
                   </span>
-                  {displayVehicle}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">DATE</span>
-                <span className="text-[15px] font-black text-[#1c1b1f]">Today</span>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-750 pt-2.5 flex justify-between items-center text-sm">
+                  <span className="font-bold text-[#2B3674] dark:text-slate-200">Amount Paid</span>
+                  <span className="text-base font-black text-[#4a40e0] dark:text-indigo-400">₹{totalAmount}</span>
+                </div>
               </div>
 
-              {/* Row 2 */}
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">DURATION</span>
-                <span className="text-[15px] font-black text-[#1c1b1f]">{duration}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">ENTRY</span>
-                <span className="text-[15px] font-black text-[#1c1b1f]">{entryDisplay}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-[0.12em] font-bold text-slate-400 mb-1.5">EXIT</span>
-                <span className="text-[15px] font-black text-[#1c1b1f]">{exitDisplay}</span>
-              </div>
             </div>
-          </div>
-
-          {/* Dashed Separator */}
-          <div className="relative">
-            <div className="absolute left-0 -ml-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8F9FE] rounded-full"></div>
-            <div className="absolute right-0 -mr-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F8F9FE] rounded-full"></div>
-            <div className="w-[85%] mx-auto border-t-[2px] border-dashed border-slate-200/60"></div>
-          </div>
-
-          {/* Payment Info */}
-          <div className="p-6 pt-5">
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100">
-              <div className="flex justify-between items-center">
-                <span className="text-[13px] text-slate-500">Booking ID</span>
-                <span className="text-[13px] font-bold text-[#1c1b1f]">{bookingId}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[13px] text-slate-500">Paid via</span>
-                <span className="text-[13px] font-bold text-[#1c1b1f] flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-100">
-                  <span className="material-symbols-outlined text-[14px] text-[#4a40e0]" style={{ fontVariationSettings: "'FILL' 1" }}>{paymentIcon}</span>
-                  {paymentMethod === 'Primary Card' ? 'DoCard' : paymentMethod}
-                </span>
-              </div>
-              <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
-                <span className="text-[14px] font-bold text-[#1c1b1f]">Amount Paid</span>
-                <span className="text-xl font-black text-[#4a40e0]">₹{totalAmount}</span>
-              </div>
-            </div>
-          </div>
           </div>
         </div>
 
-        {/* ── ACTION BUTTONS ─────────────────── */}
-        <div className="w-full space-y-3 mt-6">
+        {/* Right Column: Directions and download buttons */}
+        <div className="lg:col-span-5 space-y-4 lg:pt-16">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400 block pl-1">Receipt Actions</span>
+          
           <button
             onClick={() => {
               const lat = stationLat || 18.5204; 
               const lng = stationLng || 73.8567;
               window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
             }}
-            className="w-full py-4 bg-[#4a40e0] hover:bg-[#3b32b3] text-white font-bold text-[14px] rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+            className="w-full py-4 bg-[#4a40e0] hover:bg-[#3b32b3] text-white font-extrabold text-[13px] rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
+            <span className="material-symbols-outlined text-lg">explore</span>
             View Directions
           </button>
+          
           <button 
             onClick={handleDownload}
-            className="w-full py-4 bg-white text-[#4a40e0] font-bold text-[14px] rounded-2xl flex items-center justify-center gap-2 border-2 border-[#4a40e0]/10 hover:bg-slate-50 active:scale-[0.98] transition-all shadow-sm"
+            className="w-full py-4 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[13px] rounded-xl flex items-center justify-center gap-2 border-2 border-[#4a40e0]/10 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-[0.98] transition-all shadow-sm cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">download</span>
-            Download Ticket
+            <span className="material-symbols-outlined text-lg">download</span>
+            Download Ticket Image
+          </button>
+
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="w-full py-4 bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-extrabold text-[13px] rounded-xl hover:bg-slate-100 dark:hover:bg-slate-850 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            Back to Dashboard
           </button>
         </div>
-      </main>
-    </div>
-  );
-}
 
-function NavBtn({ icon, label, active, onClick }) {
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition ${active ? 'text-[#4a40e0] bg-indigo-50' : 'text-slate-400 hover:text-slate-600'}`}>
-      <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: active ? "'FILL' 1" : "'wght' 500" }}>{icon}</span>
-      <span className="text-[9px] font-bold uppercase tracking-widest leading-tight text-center">{label}</span>
-    </button>
+      </div>
+    </div>
   );
 }

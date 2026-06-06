@@ -1,70 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from './supabase';
-import { useNavigate } from 'react-router-dom';
 
 export default function ActiveBooking() {
   const navigate = useNavigate();
-  const [activeBooking, setActiveBooking] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { activeBooking, fetchProfileAndCard } = useOutletContext();
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timerLabel, setTimerLabel] = useState('Ongoing Parking Time');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-
-  console.log("ACTIVE_BOOKING_V2_LOADED", activeBooking);
 
   useEffect(() => {
     const clock = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(clock);
   }, []);
 
-  useEffect(() => {
-    fetchActiveBooking();
-    
-    // Subscribe to booking changes (e.g. if Admin cancels it)
-    const subscription = supabase
-      .channel('active-booking-monitor')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        (payload) => {
-          if (payload.new && payload.new.status !== 'active') {
-             fetchActiveBooking();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, []);
-
-  // Live Timer
+  // Live Timer based on activeBooking from context
   useEffect(() => {
     if (!activeBooking) return;
 
     const timer = setInterval(() => {
-      // Use wall-clock time we're already tracking
       const now = new Date();
       const start = new Date(activeBooking.start_time);
       const isStarted = now >= start;
       const dur = activeBooking.duration_hours || 1;
-      const totalDurationSec = dur * 3600;
       
       let displaySec = 0;
       
       if (!isStarted) {
-          // Future booking - countdown
           displaySec = Math.floor((start - now) / 1000);
           setTimerLabel('STARTS IN');
       } else {
-          // ACTIVE Session - Count-up for ELAPSED time
           displaySec = Math.floor((now - start) / 1000);
           setTimerLabel('SESSION ELAPSED');
-          
-          // Optionally you can show remaining if you prefer, 
-          // let's show elapsed for active tracking.
       }
       
       const hrs = Math.floor(displaySec / 3600);
@@ -79,46 +47,15 @@ export default function ActiveBooking() {
     return () => clearInterval(timer);
   }, [activeBooking]);
 
-  const fetchActiveBooking = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          parking_stations(name, address),
-          parking_slots(slot_number)
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('start_time', { ascending: false })
-        .maybeSingle();
-
-      if (error) throw error;
-      setActiveBooking(data);
-    } catch (err) {
-      console.error("Error fetching active booking:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCheckout = async () => {
     if (!activeBooking) return;
     setCheckoutLoading(true);
     
     try {
-      // 1. Calculate final price (e.g. ₹40 flat for now or dynamic)
       const finalPrice = 40; 
       const endTime = new Date().toISOString();
 
-      // 2. Update booking status
+      // 1. Update booking status
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'completed', end_time: endTime, total_price: finalPrice })
@@ -126,13 +63,13 @@ export default function ActiveBooking() {
 
       if (bookingError) throw bookingError;
 
-      // 3. Free up the slot
+      // 2. Free up the slot
       await supabase
         .from('parking_slots')
         .update({ is_occupied: false })
         .eq('slot_id', activeBooking.slot_id);
 
-      // 4. Update user card balance
+      // 3. Update user card balance
       const { data: card } = await supabase
         .from('parking_cards')
         .select('*')
@@ -146,6 +83,11 @@ export default function ActiveBooking() {
             .eq('card_id', card.card_id);
       }
 
+      // Refresh layout context state
+      if (fetchProfileAndCard) {
+        await fetchProfileAndCard();
+      }
+
       navigate('/history');
     } catch (err) {
       console.error("Checkout failed:", err);
@@ -155,152 +97,146 @@ export default function ActiveBooking() {
   };
 
   return (
-    <div className="bg-[#F8F9FE] min-h-screen text-on-surface flex flex-col font-body">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-6 lg:p-8 flex flex-col font-body">
       
-      {/* Header */}
-      <header className="bg-white px-6 py-6 shadow-sm flex items-center justify-between z-20">
-          <button className="text-[#4a40e0] p-1 cursor-pointer" onClick={() => navigate('/dashboard')}>
-             <span className="material-symbols-outlined text-[28px]">arrow_back</span>
-          </button>
-          <h1 className="text-xl font-extrabold text-[#4a40e0] tracking-tight">Active Session</h1>
-          <button className="w-10 h-10 rounded-full bg-[#ECFDF5] text-[#10B981] flex items-center justify-center">
-             <span className="material-symbols-outlined text-lg animate-pulse">check_circle</span>
-          </button>
-      </header>
+      {/* Title & Clock Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 pb-5 border-b border-slate-100 dark:border-slate-800/40">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#4a40e0] tracking-tight flex items-center gap-2">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+            Active Parking Session
+          </h2>
+          <p className="text-slate-400 text-xs font-semibold mt-1">Track and manage your live parking status</p>
+        </div>
 
-      <main className="flex-1 w-full max-w-md mx-auto px-6 pt-6 pb-10 flex flex-col items-center">
-        
-        {/* Wall Clock - Real Time */}
-        {!loading && (
-          <div className="w-full flex justify-between items-end mb-6 px-2">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-[#A3AED0] uppercase tracking-widest leading-none">Local Time</span>
-              <div className="text-[15px] font-black text-[#2B3674] mt-1">
+        {activeBooking && (
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800/40 px-4 py-2.5 rounded-xl border border-slate-100 dark:border-slate-700/10">
+            <div className="flex flex-col sm:items-end">
+              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Local Time</span>
+              <span className="text-[#2B3674] dark:text-slate-200 mt-0.5">
                 {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </div>
+              </span>
             </div>
-            <div className="text-right">
-              <span className="text-[10px] font-black text-[#A3AED0] uppercase tracking-widest leading-none">Date</span>
-              <div className="text-[15px] font-black text-[#2B3674] mt-1">
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Date</span>
+              <span className="text-[#2B3674] dark:text-slate-200 mt-0.5">
                 {currentTime.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
+              </span>
             </div>
           </div>
         )}
+      </div>
 
-        {loading ? (
-             <div className="flex flex-col items-center gap-4 py-20">
-                <div className="animate-spin w-12 h-12 border-4 border-[#5D50D6]/30 border-t-[#5D50D6] rounded-full"></div>
-                <span className="text-xs font-black text-[#A3AED0] uppercase tracking-widest">Syncing with Cloud...</span>
-             </div>
-        ) : !activeBooking ? (
-            <div className="bg-white rounded-[2.5rem] p-10 text-center flex flex-col items-center shadow-sm border border-outline-variant/10 w-full">
-                <div className="w-20 h-20 rounded-[2rem] bg-[#F4F7FE] text-[#5D50D6] flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined text-[40px]">notifications_off</span>
+      {!activeBooking ? (
+        <div className="max-w-md mx-auto py-16 text-center flex flex-col items-center w-full">
+          <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 text-[#4a40e0] flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700/30">
+            <span className="material-symbols-outlined text-[40px]">notifications_off</span>
+          </div>
+          <h3 className="text-xl font-black text-[#2B3674] dark:text-slate-200 mb-2">No Active Session</h3>
+          <p className="text-slate-400 text-sm font-medium leading-relaxed px-4">
+            You don't have any active parking spots reserved right now. Start a new booking to track your vehicle in real-time.
+          </p>
+          
+          <div className="flex flex-col w-full gap-3 mt-8">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="w-full bg-[#4a40e0] hover:bg-[#3b32b3] text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-[#4a40e0]/20 active:scale-95 transition-all cursor-pointer">
+                Find Parking Spot
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column: Live Timer Card */}
+          <div className="lg:col-span-5 flex flex-col justify-center">
+            <div className="bg-gradient-to-br from-[#4a40e0]/5 to-indigo-50/10 dark:from-[#4a40e0]/10 dark:to-transparent rounded-[2rem] p-8 md:p-10 border border-[#4a40e0]/10 flex flex-col items-center justify-center relative overflow-hidden h-full min-h-[260px] shadow-sm">
+              <div className="absolute top-6 right-6 flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-full border border-emerald-100 dark:border-emerald-900/30">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse"></div>
+                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-[0.1em]">LIVE SESSION</span>
+              </div>
+
+              <div className="relative z-10 flex flex-col items-center text-center mt-4">
+                <div className="text-5xl md:text-6xl font-black text-[#2B3674] dark:text-slate-200 tracking-tighter mb-3 font-mono">
+                  {elapsedTime}
                 </div>
-                <h3 className="text-2xl font-black text-[#2B3674] mb-2">No Active Session</h3>
-                <p className="text-[#A3AED0] text-sm font-medium leading-relaxed px-4">Start a new parking session to track your vehicle in real-time.</p>
-                
-                <div className="flex flex-col w-full gap-3 mt-8">
-                  <button 
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full bg-[#5D50D6] text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-[#5D50D6]/20 active:scale-95 transition-all">
-                      Find Parking Spot
-                  </button>
-                  <button 
-                    onClick={fetchActiveBooking}
-                    className="w-full bg-white text-[#5D50D6] py-4 rounded-2xl font-black text-sm border border-[#E9EDF7] active:scale-95 transition-all">
-                      Refresh Status
-                  </button>
-                </div>
+                <p className="text-slate-400 text-[11px] font-extrabold uppercase tracking-widest">{timerLabel}</p>
+              </div>
             </div>
-        ) : (
-            <div className="w-full space-y-5">
-                
-                {/* Timer Card - MORE DYNAMIC */}
-                <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-outline-variant/10 flex flex-col items-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#5D50D6]/5 to-transparent opacity-20"></div>
-                    
-                    {/* Pulsing indicator loop */}
-                    <div className="absolute top-6 right-8 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
-                        <div className="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></div>
-                        <span className="text-[9px] font-black text-[#5D50D6] tracking-[0.1em]">LIVE</span>
-                    </div>
+          </div>
 
-                    <div className="relative z-10 flex flex-col items-center mt-2">
-                        <div className="text-6xl font-black text-[#2B3674] tracking-tighter mb-2 font-mono">
-                          {elapsedTime}
-                        </div>
-                        <p className="text-[#A3AED0] text-[11px] font-bold uppercase tracking-widest">{timerLabel}</p>
-                    </div>
-                </div>
-
-                {/* Info Grid - DB DATA (VISIBLE) */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10">
-                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest block mb-1">PARKING ZONE</span>
-                        <div className="text-sm font-black text-[#2B3674]">{activeBooking.parking_stations?.name || 'Loading...'}</div>
-                    </div>
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-outline-variant/10">
-                        <span className="text-[9px] font-black text-[#A3AED0] uppercase tracking-widest block mb-1">SLOT ID</span>
-                        <div className="text-sm font-black text-[#2B3674]">{activeBooking.parking_slots?.slot_number || 'N/A'}</div>
-                    </div>
-                </div>
-
-                {/* Detail List */}
-                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-outline-variant/10">
-                    <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-sm font-black text-[#2B3674] uppercase tracking-widest">Vehicle Insights</h4>
-                        <span className="text-[10px] font-bold text-[#A3AED0]">BOOKING: #{activeBooking.booking_id?.slice(0, 8)}</span>
-                    </div>
-                    
-                    <div className="space-y-5">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">License Plate</span>
-                            <span className="text-sm font-black text-[#2B3674]">{activeBooking.vehicle_number}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">Entry Time</span>
-                            <span className="text-sm font-black text-[#2B3674]">
-                              {new Date(activeBooking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-[#A3AED0]">Estimated Fee</span>
-                            <span className="text-sm font-black text-[#5D50D6]">₹40.00 / Hr</span>
-                        </div>
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                            <span className="text-sm font-bold text-[#2B3674]">Total Amount Due</span>
-                            <span className="text-lg font-black text-[#5D50D6]">₹{((activeBooking.duration_hours || 1) * 40).toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Actions */}
-                <div className="pt-4 space-y-4">
-                    <button 
-                        onClick={handleCheckout}
-                        disabled={checkoutLoading}
-                        className="w-full bg-[#ff5b5b] hover:bg-[#ff4545] text-white py-5 rounded-3xl font-black text-sm shadow-xl shadow-red-500/10 flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-50">
-                        {checkoutLoading ? (
-                             <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-[20px]">payment</span>
-                                COMPLETE PAYMENT
-                            </>
-                        )}
-                    </button>
-                    <button 
-                      onClick={() => navigate('/booking', { state: { extend: true, bookingId: activeBooking.booking_id } })}
-                      className="w-full bg-white text-[#5D50D6] py-5 rounded-3xl font-black text-sm border border-[#E9EDF7] hover:border-[#5D50D6]/20 hover:text-[#2B3674] transition-all">
-                        EXTEND DURATION
-                    </button>
-                </div>
-
+          {/* Right Column: Details & Checkout Actions */}
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* Zone & Slot Identifiers */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/10">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">PARKING ZONE</span>
+                <div className="text-sm font-black text-[#2B3674] dark:text-slate-200 truncate">{activeBooking.parking_stations?.name || 'N/A'}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/10">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">SLOT ID</span>
+                <div className="text-sm font-black text-[#2B3674] dark:text-slate-200">{activeBooking.parking_slots?.slot_number || 'N/A'}</div>
+              </div>
             </div>
-        )}
-      </main>
+
+            {/* Vehicle Insights Summary Card */}
+            <div className="bg-slate-50 dark:bg-slate-800/20 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/50">
+              <div className="flex items-center justify-between mb-5">
+                <h4 className="text-xs font-black text-[#2B3674] dark:text-slate-200 uppercase tracking-widest">Vehicle Insights</h4>
+                <span className="text-[10px] font-bold text-slate-400">ID: #{activeBooking.booking_id?.slice(0, 8)}</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-slate-400">License Plate</span>
+                  <span className="font-black text-[#2B3674] dark:text-slate-200">{activeBooking.vehicle_number}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-slate-400">Entry Time</span>
+                  <span className="font-black text-[#2B3674] dark:text-slate-200">
+                    {new Date(activeBooking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-slate-400">Estimated Fee</span>
+                  <span className="font-black text-[#4a40e0] dark:text-indigo-400">₹40.00 / Hr</span>
+                </div>
+                
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-4 flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#2B3674] dark:text-slate-200">Total Amount Due</span>
+                  <span className="text-xl font-black text-[#4a40e0] dark:text-indigo-400">₹{((activeBooking.duration_hours || 1) * 40).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Complete Payment / Actions */}
+            <div className="pt-4 flex flex-col sm:flex-row gap-3">
+              <button 
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white py-4 px-6 rounded-xl font-black text-[13px] tracking-wide uppercase shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
+                {checkoutLoading ? (
+                  <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-lg">payment</span>
+                    Complete Payment
+                  </>
+                )}
+              </button>
+              
+              <button 
+                onClick={() => navigate('/booking', { state: { extend: true, bookingId: activeBooking.booking_id } })}
+                className="flex-1 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 py-4 px-6 rounded-xl font-black text-[13px] tracking-wide uppercase border-2 border-[#4a40e0]/10 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/40 hover:border-[#4a40e0]/30 transition-all cursor-pointer">
+                Extend Duration
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

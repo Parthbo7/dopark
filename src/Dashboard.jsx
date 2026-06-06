@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // Real-time states
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useOutletContext() || {};
   
   // Stations State
   const [stations, setStations] = useState([]);
@@ -32,30 +28,6 @@ export default function Dashboard() {
     { name: "Seasons Mall",        lat: 18.5154, lng: 73.9318 },
   ];
 
-  // Profile Fetch
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (!error && data) {
-            setProfile(data);
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
 
   // Stations Fetch with Nested Slots
   useEffect(() => {
@@ -178,190 +150,112 @@ export default function Dashboard() {
     }
   }, []);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
-
   return (
-    <div className="bg-surface-bright text-on-surface min-h-screen relative flex flex-col font-body md:flex-row overflow-hidden">
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)] lg:h-[780px] min-h-[500px]">
       
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/40 z-50 transition-opacity md:hidden" 
-          onClick={toggleSidebar}
-        ></div>
-      )}
+      {/* Map View & Floating Search */}
+      <div className="flex-1 relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 dark:border-slate-800/40 overflow-hidden flex flex-col h-full">
+        
+        {/* Floating Search */}
+        <div className="absolute top-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
+          <div className="relative w-full max-w-xl flex items-center bg-white/90 backdrop-blur-md shadow-lg shadow-indigo-500/5 rounded-2xl overflow-hidden pointer-events-auto border border-slate-100/80 transition-shadow hover:shadow-xl px-4 py-1.5">
+            <span className="material-symbols-outlined text-slate-400">search</span>
+            <input 
+              className="w-full bg-transparent border-none py-2 px-3 text-sm focus:outline-none placeholder:text-slate-400 text-on-surface" 
+              placeholder="Search parking stations, landmarks..." 
+              type="text"
+            />
+            <button className="bg-[#4a40e0] hover:bg-[#3d34b8] transition-colors text-white w-8 h-8 rounded-lg shrink-0 cursor-pointer shadow-md flex items-center justify-center">
+              <span className="material-symbols-outlined text-base">mic</span>
+            </button>
+          </div>
+        </div>
 
-      {/* Sidebar Panel */}
-      <aside className={`fixed md:relative top-0 left-0 h-full w-[85%] md:w-80 max-w-sm bg-surface-bright z-50 md:z-10 transform transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none border-r border-outline-variant/20 flex flex-col overflow-y-auto custom-scrollbar ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
-        <div className="p-6 md:py-8 flex flex-col h-full">
-           
-           {/* Profile Header Block */}
-           <div className="flex items-center gap-4 mb-8">
-              <div className="w-14 h-14 rounded-2xl bg-teal-600 overflow-hidden shadow-lg border-2 border-surface shrink-0">
-                  <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSWWkzsQW9kTxfkfUgbn1-8xp1z31xi_U9P18fUu41MEHTQwFWDUyAZ2KrtiwRkBS0mgWsaWX8Rp2Y-T4NFwLiecce5xMovHZyHvnyIZGVDvnQba1WG_e5V4U4mGrqrgkBT_NiB9mef-5ydAZTqNKS76_Hwbd1LK8W4r4rtj0McBSAakWegCCu_W24orHPTxTQRWFWFM0l98I-NxE8oUQthNslVP4HqkCLM5rEEEHw5H31QcwqKK_4Yww4TRRWiTAvShZyu3jRK6I" alt="User" />
+        {/* Google Map Container */}
+        <div ref={mapContainerRef} className="flex-grow w-full h-full z-0" />
+
+        {/* Horizontally scrolling list - Mobile/Tablet only */}
+        <div className="lg:hidden absolute bottom-4 left-0 right-0 px-4 overflow-x-auto snap-x custom-scrollbar flex gap-4 z-20 pb-2">
+           {stationsLoading ? (
+              <div className="w-[300px] bg-white rounded-2xl p-5 shadow-lg flex items-center justify-center min-h-[160px]">
+                 <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#4a40e0]/30 border-t-[#4a40e0]"></div>
               </div>
-              <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold text-on-surface truncate">
-                     {loading ? "Loading..." : (profile?.full_name || "Guest User")}
-                  </h2>
-                  <p className="text-[#4a40e0] text-xs font-semibold">Premium Member</p>
-              </div>
-              <button className="md:hidden p-2 text-outline" onClick={toggleSidebar}>
-                 <span className="material-symbols-outlined">close</span>
-              </button>
-           </div>
+           ) : (
+              stations.map(station => (
+                <StationCard key={station.station_id} station={station} profile={profile} navigate={navigate} />
+              ))
+           )}
+        </div>
+      </div>
 
-           <nav className="space-y-1">
-              <a href="#" className="flex items-center gap-4 bg-[#4a40e0]/5 text-[#4a40e0] p-3 rounded-xl font-semibold text-sm">
-                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
-                 Home
-              </a>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/history'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
-                 <span className="material-symbols-outlined">history</span>
-                 Parking History
-              </a>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/my-cards'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
-                 <span className="material-symbols-outlined">credit_card</span>
-                 My Cards
-              </a>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/active-booking'); }} className="flex items-center gap-4 text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
-                 <span className="material-symbols-outlined">receipt_long</span>
-                 Active Booking
-              </a>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/notifications'); }} className="flex items-center justify-between text-on-surface-variant p-3 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition cursor-pointer">
-                 <div className="flex items-center gap-4">
-                    <span className="material-symbols-outlined">notifications</span>
-                    Notifications
-                 </div>
-                 <div className="w-2 h-2 rounded-full bg-error"></div>
-              </a>
-           </nav>
-
-           <div className="mt-8">
-              <button onClick={handleLogout} className="w-full flex items-center gap-4 text-error p-3 rounded-xl font-semibold text-sm hover:bg-error/10 transition">
-                 <span className="material-symbols-outlined">logout</span>
-                 Logout
-              </button>
-           </div>
-
+      {/* Stations Sidebar List - Desktop only (lg screens) */}
+      <aside className="hidden lg:flex flex-col w-96 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-full overflow-hidden shrink-0">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between shrink-0">
+          <h3 className="font-extrabold text-[#1c1b1f] tracking-tight">Available Parking</h3>
+          <span className="text-xs bg-indigo-50 text-[#4a40e0] font-bold px-2.5 py-1 rounded-lg">
+            {stationsLoading ? '...' : `${stations.length} locations`}
+          </span>
+        </div>
+        
+        <div className="flex-grow overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/30 dark:bg-slate-900/10">
+          {stationsLoading ? (
+            <div className="flex items-center justify-center h-48">
+               <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#4a40e0]/30 border-t-[#4a40e0]"></div>
+            </div>
+          ) : (
+            stations.map(station => (
+              <StationCard key={station.station_id} station={station} profile={profile} navigate={navigate} compact />
+            ))
+          )}
         </div>
       </aside>
 
-      {/* --- Main Content Area --- */}
-      <div className="flex-1 flex flex-col relative w-full overflow-hidden h-screen">
-        
-        {/* Header - Mobile Only */}
-        <header className="flex md:hidden items-center justify-between px-4 py-4 z-40 bg-surface-bright/80 backdrop-blur-md sticky top-0 border-b border-outline-variant/10">
-          <button onClick={toggleSidebar} className="p-2 text-[#4a40e0] hover:bg-indigo-50 transition-colors rounded-xl active:scale-95 cursor-pointer">
-            <span className="material-symbols-outlined text-2xl">menu</span>
-          </button>
-          
-          <h1 className="text-xl font-extrabold text-[#4a40e0] tracking-tight">DoParking</h1>
-          
-          <button onClick={() => navigate('/notifications')} className="p-2 text-outline hover:bg-indigo-50 transition-colors rounded-xl relative">
-             <span className="material-symbols-outlined">notifications</span>
-             <div className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full outline outline-2 outline-surface-bright border-none"></div>
-          </button>
-        </header>
-
-        {/* Map Area */}
-        <main className="flex-1 relative w-full parking-map-pattern h-full flex flex-col overflow-hidden bg-surface-container-low">
-          
-          {/* Top Floating Search */}
-          <div className="absolute top-4 md:top-8 left-0 right-0 px-4 flex justify-center z-30 pointer-events-none">
-            <div className="relative w-full max-w-lg md:max-w-2xl flex items-center bg-surface-container-lowest shadow-lg shadow-indigo-500/10 rounded-2xl overflow-hidden pointer-events-auto border border-outline-variant/10 transition-shadow hover:shadow-xl">
-              <span className="material-symbols-outlined text-on-surface-variant ml-5">search</span>
-              <input 
-                className="w-full bg-transparent border-none py-4 px-4 text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-0 md:text-base text-sm" 
-                placeholder="Search parking location, city, or zip..." 
-                type="text"
-              />
-              <button className="bg-[#4a40e0] hover:bg-[#3d34b8] transition-colors text-white p-3 rounded-xl mr-2 cursor-pointer shadow-md flex items-center justify-center">
-                <span className="material-symbols-outlined sm:text-[20px]">mic</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Live Google Map Background */}
-          <div ref={mapContainerRef} className="absolute inset-0 z-0" style={{ minHeight: '100%' }} />
-
-          {/* Zomato-Style Horizontally Scrolling Cards Container */}
-          <div className="absolute bottom-[90px] md:bottom-12 w-full px-4 overflow-x-auto snap-x custom-scrollbar flex gap-4 z-20 pb-4">
-             {stationsLoading ? (
-                 <div className="w-[300px] bg-white rounded-2xl p-5 shadow-lg flex items-center justify-center min-h-[160px]">
-                     <div className="animate-spin w-8 h-8 rounded-full border-4 border-[#4a40e0]/30 border-t-[#4a40e0]"></div>
-                 </div>
-             ) : (
-                stations.map(station => (
-                  <div key={station.station_id} className="min-w-[300px] max-w-[320px] bg-white rounded-[1.5rem] shadow-[0px_10px_30px_rgba(74,64,224,0.1)] p-4 snap-center border border-outline-variant/10 flex flex-col">
-                      <div className="flex justify-between items-start mb-2">
-                          <h3 className="text-[17px] font-extrabold text-on-surface tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{station.name}</h3>
-                          <div className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg flex items-center gap-1 ml-2 shrink-0 border border-emerald-100">
-                             <span className="font-bold text-[12px]">{station.rating}</span>
-                             <span className="text-[10px]">★</span>
-                          </div>
-                      </div>
-                      
-                      <div className="text-on-surface-variant text-[12px] font-medium leading-tight mb-4 flex items-start gap-1">
-                          <span className="material-symbols-outlined text-[14px]">location_on</span>
-                          <span className="truncate">{station.address}, {station.city}</span>
-                      </div>
-
-                      <div className="bg-[#f0effb] rounded-xl p-3 flex items-center gap-3 mb-4">
-                         <div className="flex-1 flex flex-col items-center border-r border-[#4a40e0]/10">
-                            <span className="text-[10px] text-outline-variant font-bold uppercase tracking-widest mb-0.5">4 Wheeler</span>
-                            <span className={`font-extrabold text-lg ${station.available4w > 0 ? 'text-[#4a40e0]' : 'text-error'}`}>{station.available4w}</span>
-                         </div>
-                         <div className="flex-1 flex flex-col items-center">
-                            <span className="text-[10px] text-outline-variant font-bold uppercase tracking-widest mb-0.5">2 Wheeler</span>
-                            <span className={`font-extrabold text-lg ${station.available2w > 0 ? 'text-[#4a40e0]' : 'text-error'}`}>{station.available2w}</span>
-                         </div>
-                      </div>
-                      
-                      <button 
-                         onClick={() => navigate('/booking', { state: { stationId: station.station_id, stationName: station.name, stationAddress: [station.address, station.city].filter(Boolean).join(', ') || 'Pune', stationLat: station.latitude, stationLng: station.longitude, vehicleType: profile?.vehicle_type || '4w' } })} 
-                         disabled={station.totalAvailable === 0}
-                         className={`w-full py-3 rounded-[14px] text-white font-bold text-[13px] tracking-wide transition-all ${station.totalAvailable > 0 ? 'bg-gradient-to-r from-[#4a40e0] to-[#5D50D6] shadow-[0px_6px_15px_rgba(74,64,224,0.25)] hover:brightness-110 active:scale-95 cursor-pointer' : 'bg-surface-container-high text-outline cursor-not-allowed'}`}
-                      >
-                          {station.totalAvailable > 0 ? 'Book Slot Now' : 'Parking Full'}
-                      </button>
-                  </div>
-                ))
-             )}
-          </div>
-
-        </main>
-
-        {/* --- BottomNavBar (Mobile Only) --- */}
-        <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] rounded-2xl bg-white/95 backdrop-blur-xl z-30 flex justify-around items-center px-1.5 py-2 shadow-2xl border border-outline-variant/15">
-          <a className="flex flex-col items-center justify-center text-[#4a40e0] py-1.5 px-3 transition-all" href="#">
-            <div className="bg-[#4a40e0]/10 p-1.5 rounded-xl mb-1 flex items-center justify-center">
-               <span className="material-symbols-outlined text-[20px] block" style={{ fontVariationSettings: "'FILL' 1" }}>explore</span>
-            </div>
-            <span className="text-[9px] font-bold uppercase tracking-widest">FIND</span>
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/history'); }} className="flex flex-col items-center justify-center text-on-surface-variant hover:text-[#4a40e0] transition-colors py-1.5 px-3 cursor-pointer">
-            <span className="material-symbols-outlined text-[20px] mb-1.5">local_activity</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">BOOKINGS</span>
-          </a>
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/my-cards'); }} className="flex flex-col items-center justify-center text-on-surface-variant hover:text-[#4a40e0] transition-colors py-1.5 px-3 cursor-pointer">
-            <span className="material-symbols-outlined text-[20px] mb-1.5">account_balance_wallet</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">DOCARD</span>
-          </a>
-          <a className="flex flex-col items-center justify-center text-on-surface-variant hover:text-[#4a40e0] transition-colors py-1.5 px-3" href="#">
-            <span className="material-symbols-outlined text-[20px] mb-1.5">person</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">ACCOUNT</span>
-          </a>
-        </nav>
-        
-      </div>
     </div>
   );
 }
+
+// Sub-component for Station card
+function StationCard({ station, profile, navigate, compact }) {
+  return (
+    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-[0_2px_12px_rgba(74,64,224,0.05)] border border-slate-100 dark:border-slate-700/50 p-4 flex flex-col shrink-0 snap-center transition-all hover:shadow-md ${
+      compact ? 'w-full' : 'min-w-[300px] max-w-[320px]'
+    }`}>
+      <div className="flex justify-between items-start mb-2">
+        <h4 className="font-extrabold text-[15px] text-on-surface tracking-tight truncate max-w-[70%]">{station.name}</h4>
+        <div className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0 border border-emerald-100 text-[11px]">
+          <span className="font-bold">{station.rating}</span>
+          <span>★</span>
+        </div>
+      </div>
+      
+      <div className="text-slate-400 text-[11px] font-semibold flex items-center gap-1 mb-3">
+        <span className="material-symbols-outlined text-[13px]">location_on</span>
+        <span className="truncate">{station.address}, {station.city}</span>
+      </div>
+
+      <div className="bg-[#f0effb] dark:bg-indigo-950/40 rounded-xl p-2.5 flex items-center gap-2 mb-3">
+        <div className="flex-1 flex flex-col items-center border-r border-[#4a40e0]/10 dark:border-white/5">
+          <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-0.5">4 Wheeler</span>
+          <span className={`font-black text-sm ${station.available4w > 0 ? 'text-[#4a40e0]' : 'text-error'}`}>{station.available4w}</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center">
+          <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mb-0.5">2 Wheeler</span>
+          <span className={`font-black text-sm ${station.available2w > 0 ? 'text-[#4a40e0]' : 'text-error'}`}>{station.available2w}</span>
+        </div>
+      </div>
+      
+      <button 
+        onClick={() => navigate('/booking', { state: { stationId: station.station_id, stationName: station.name, stationAddress: [station.address, station.city].filter(Boolean).join(', ') || 'Pune', stationLat: station.latitude, stationLng: station.longitude, vehicleType: profile?.vehicle_type || '4w' } })} 
+        disabled={station.totalAvailable === 0}
+        className={`w-full py-2.5 rounded-xl text-white font-bold text-[12px] tracking-wide transition-all ${
+          station.totalAvailable > 0 
+            ? 'bg-gradient-to-r from-[#4a40e0] to-[#5D50D6] shadow-md shadow-[#4a40e0]/10 hover:brightness-110 active:scale-95 cursor-pointer' 
+            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+        }`}
+      >
+        {station.totalAvailable > 0 ? 'Book Slot Now' : 'Parking Full'}
+      </button>
+    </div>
+  );
+}
+

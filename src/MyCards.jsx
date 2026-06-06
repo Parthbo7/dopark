@@ -1,176 +1,227 @@
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useState } from 'react';
 import { supabase } from './supabase';
 
 export default function MyCards() {
   const navigate = useNavigate();
-  const [cardData, setCardData] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [autoPayEnabled, setAutoPayEnabled] = useState(true);
+  const { profile, cardData, fetchProfileAndCard } = useOutletContext();
   const [lowBalAlert, setLowBalAlert] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (pData) setProfile(pData);
-
-        const { data, error } = await supabase.from('parking_cards').select('*').eq('user_id', user.id).single();
-        if (!error && data) {
-          setCardData(data);
-          setAutoPayEnabled(data.auto_pay_enabled);
-        }
-      } catch (err) { console.error(err); }
-      finally { setIsLoading(false); }
-    };
-    fetchData();
-  }, []);
-
-  const vehicleNum = cardData?.vehicle_number || 'MH12 AB 1234';
+  const vehicleNum = profile?.vehicle_number || 'MH12 AB 1234';
   const balance = cardData?.balance || 0;
+  const autoPayEnabled = cardData?.auto_pay_enabled || false;
+
+  const handleAddMoney = async () => {
+    if (!cardData) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('parking_cards')
+        .update({ balance: cardData.balance + 500 })
+        .eq('card_id', cardData.card_id);
+      
+      if (error) throw error;
+      
+      if (fetchProfileAndCard) {
+        await fetchProfileAndCard();
+      }
+    } catch (err) {
+      console.error("Failed to add money:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!cardData || cardData.balance < 500) {
+      alert("Insufficient balance to withdraw ₹500!");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('parking_cards')
+        .update({ balance: cardData.balance - 500 })
+        .eq('card_id', cardData.card_id);
+      
+      if (error) throw error;
+      
+      if (fetchProfileAndCard) {
+        await fetchProfileAndCard();
+      }
+    } catch (err) {
+      console.error("Failed to withdraw money:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const toggleAutoPay = async () => {
+    if (!cardData) return;
+    try {
+      const { error } = await supabase
+        .from('parking_cards')
+        .update({ auto_pay_enabled: !autoPayEnabled })
+        .eq('card_id', cardData.card_id);
+      
+      if (error) throw error;
+      
+      if (fetchProfileAndCard) {
+        await fetchProfileAndCard();
+      }
+    } catch (err) {
+      console.error("Failed to toggle AutoPay:", err);
+    }
+  };
 
   return (
-    <div className="bg-[#F8F9FE] min-h-screen text-[#1c1b1f] flex flex-col font-body">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-6 lg:p-8 flex flex-col font-body">
+      
+      {/* Title Header */}
+      <div className="mb-8 pb-5 border-b border-slate-100 dark:border-slate-800/40">
+        <h2 className="text-xl font-extrabold text-[#4a40e0] tracking-tight">DoCard & Wallet</h2>
+        <p className="text-slate-400 text-xs font-semibold mt-1">Manage your linked vehicle smart card, wallet balance, and AutoPay settings</p>
+      </div>
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-4 bg-white border-b border-slate-100 w-full max-w-md mx-auto md:max-w-2xl">
-        <button onClick={() => navigate('/dashboard')} className="p-1.5 text-[#4a40e0] hover:bg-slate-50 rounded-xl cursor-pointer">
-          <span className="material-symbols-outlined text-xl">menu</span>
-        </button>
-        <span className="text-lg font-extrabold tracking-tight text-[#4a40e0]">ParkPremium</span>
-        <button onClick={() => navigate('/notifications')} className="relative p-1.5 text-[#4a40e0]">
-          <span className="material-symbols-outlined text-xl">notifications</span>
-          <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-        </button>
-      </header>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Linked Vehicle Card Visual */}
+        <div className="lg:col-span-6 space-y-6">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400 block pl-1">Linked Vehicle Card</span>
+          
+          <div className="rounded-[2rem] p-6 md:p-8 relative overflow-hidden text-white shadow-lg shadow-[#4a40e0]/10 flex flex-col justify-between min-h-[220px] md:min-h-[260px]" style={{ background: 'linear-gradient(135deg, #6C63FF 0%, #4F46E5 45%, #7C3AED 100%)' }}>
+            {/* Decorative glows */}
+            <div className="absolute -top-10 -right-10 w-44 h-44 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-white/5 rounded-full blur-xl"></div>
 
-      <main className="flex-1 w-full max-w-md mx-auto md:max-w-2xl overflow-y-auto custom-scrollbar pb-8">
+            {/* Card Top Row */}
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-xl text-white/95">local_parking</span>
+                <span className="text-[11px] font-black tracking-widest uppercase text-white/90">DoCard Smart Pay</span>
+              </div>
+              <span className="bg-white/20 backdrop-blur text-white text-[9px] font-black uppercase px-3.5 py-1 rounded-full tracking-wider border border-white/10">
+                Primary
+              </span>
+            </div>
 
-        {isLoading ? (
-          <div className="flex justify-center p-16"><div className="animate-spin w-8 h-8 rounded-full border-4 border-[#4a40e0]/30 border-t-[#4a40e0]"></div></div>
-        ) : (
-          <>
-            {/* â”€â”€ MY WALLET SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="px-5 pt-6">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400 mb-3 block">MY DOCARD</span>
-              <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100">
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-3xl font-black text-[#1c1b1f] tracking-tight">₹{Number(balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h2>
-                  <div className="w-10 h-10 rounded-xl bg-[#4a40e0]/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[#4a40e0] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
-                  </div>
-                </div>
-
-                {/* Add / Withdraw Buttons */}
-                <div className="flex gap-3 mb-5">
-                  <button className="flex-1 bg-[#4a40e0] hover:bg-[#3d34b8] text-white font-bold text-[13px] py-3 rounded-full transition-all active:scale-[0.97] shadow-md shadow-[#4a40e0]/20">
-                    Add Money
-                  </button>
-                  <button className="flex-1 bg-white text-[#4a40e0] font-bold text-[13px] py-3 rounded-full border-2 border-[#4a40e0] hover:bg-[#f0effb] transition-all active:scale-[0.97]">
-                    Withdraw
-                  </button>
-                </div>
-
-                {/* Wallet Stats */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-slate-500">AutoPay</span>
-                    <span className="text-emerald-500 font-bold text-[12px]">ENABLED</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-slate-500">Linked Cards</span>
-                    <span className="font-bold text-[#1c1b1f]">2 Cards</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-slate-500">Last Recharge</span>
-                    <span className="font-bold text-[#1c1b1f]">₹500</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-slate-500">Low Balance Alert</span>
-                    <div 
-                      onClick={() => setLowBalAlert(!lowBalAlert)} 
-                      className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${lowBalAlert ? 'bg-[#4a40e0]' : 'bg-slate-300'}`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${lowBalAlert ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                    </div>
-                  </div>
-                </div>
+            {/* Vehicle Details */}
+            <div className="my-6 relative z-10">
+              <h3 className="text-lg font-black tracking-tight">{profile?.vehicle_type === '2_wheeler' ? '2 Wheeler' : '4 Wheeler'} Spot-Pass</h3>
+              
+              {/* Number Plate Display */}
+              <div className="text-2xl md:text-3xl font-black tracking-[0.15em] mt-3 mb-1 text-white/95 uppercase" style={{ fontFamily: "'JetBrains Mono', 'Roboto Mono', monospace" }}>
+                {vehicleNum}
+              </div>
+              <div className="flex items-center gap-1 text-white/70 text-[10px] font-bold">
+                <span className="material-symbols-outlined text-[13px]">bolt</span>
+                <span>FAST EXIT ENABLED</span>
               </div>
             </div>
 
-            {/* â”€â”€ LINKED VEHICLE CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="px-5 pt-6">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400 mb-3 block">LINKED VEHICLE CARD</span>
-              <div className="rounded-[1.5rem] p-6 relative overflow-hidden text-white" style={{ background: 'linear-gradient(135deg, #6C63FF 0%, #4F46E5 40%, #7C3AED 100%)' }}>
-                {/* Decorative glow */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-                <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-xl"></div>
+            {/* Bottom Info Pill Badges */}
+            <div className="flex flex-wrap gap-2 relative z-10">
+              <span className="bg-white/15 backdrop-blur text-white text-[9px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-white/5">
+                <span className="material-symbols-outlined text-[11px]">check_circle</span>
+                AutoPay: {autoPayEnabled ? 'Active' : 'Disabled'}
+              </span>
+              <span className="bg-white/15 backdrop-blur text-white text-[9px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-white/5">
+                <span className="material-symbols-outlined text-[11px]">payments</span>
+                Bal: ₹{Number(balance).toFixed(2)}
+              </span>
+            </div>
+          </div>
 
-                {/* Card Header */}
-                <div className="flex items-center justify-between mb-1 relative z-10">
-                  <span className="text-white/80 text-[11px] font-bold tracking-wider uppercase">LINKED VEHICLE CARD</span>
-                  <span className="bg-white/20 backdrop-blur text-white text-[9px] font-extrabold uppercase px-3 py-1 rounded-full tracking-wider">PRIMARY</span>
-                </div>
+          {/* Vehicle Switch Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button className="flex-grow py-3.5 rounded-xl border-2 border-[#4a40e0]/10 dark:border-slate-800 text-[#4a40e0] dark:text-indigo-400 font-extrabold text-[12px] uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all active:scale-[0.98] cursor-pointer">
+              Switch Vehicle
+            </button>
+            <button className="flex-grow py-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 font-extrabold text-[12px] uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all active:scale-[0.98] cursor-pointer">
+              Add New Vehicle
+            </button>
+          </div>
+        </div>
 
-                {/* Vehicle Type */}
-                <h3 className="text-xl font-black mb-1 relative z-10">{profile?.vehicle_type === '2_wheeler' ? '2 Wheeler' : '4 Wheeler'}</h3>
-                
-                <div className="flex items-center gap-2 mb-5 relative z-10">
-                  <span className="material-symbols-outlined text-[14px] text-white/70" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
-                  <span className="text-white/80 text-[11px] font-bold">FAST EXIT</span>
-                </div>
-
-                {/* Number Plate */}
-                <div className="text-[28px] font-black tracking-[0.18em] mb-5 relative z-10" style={{ fontFamily: "'JetBrains Mono', 'Roboto Mono', monospace" }}>
-                  {vehicleNum}
-                </div>
-
-                {/* Badges */}
-                <div className="flex gap-2 relative z-10">
-                  <span className="bg-white/15 backdrop-blur text-white text-[9px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                    AUTO PAY : ACTIVE
-                  </span>
-                  <span className="bg-white/15 backdrop-blur text-white text-[9px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
-                    FAST EXIT : ENABLED
-                  </span>
-                </div>
+        {/* Right Column: Wallet Controls & Settings */}
+        <div className="lg:col-span-6 space-y-6">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400 block pl-1">Wallet Management</span>
+          
+          <div className="bg-slate-50 dark:bg-slate-800/30 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800/50 space-y-6">
+            
+            {/* Wallet Balance Card */}
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">AVAILABLE BALANCE</span>
+                <h2 className="text-3xl font-black text-[#2B3674] dark:text-slate-200 tracking-tight">
+                  ₹{Number(balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </h2>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-[#4a40e0]/10 text-[#4a40e0] flex items-center justify-center border border-[#4a40e0]/10 shadow-sm shrink-0">
+                <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
               </div>
             </div>
 
-            {/* â”€â”€ AUTO PAY TOGGLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="px-5 pt-5">
-              <div className="bg-white rounded-2xl p-5 flex items-center justify-between shadow-sm border border-slate-100">
+            {/* Quick Balance Recharge / Withdraw Buttons */}
+            <div className="flex gap-3">
+              <button 
+                onClick={handleAddMoney}
+                disabled={actionLoading}
+                className="flex-1 bg-[#4a40e0] hover:bg-[#3d34b8] disabled:bg-indigo-300 text-white font-extrabold text-[12px] uppercase tracking-wider py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-md shadow-[#4a40e0]/10 flex items-center justify-center gap-1.5 cursor-pointer">
+                {actionLoading ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm font-black">add</span>
+                    Recharge ₹500
+                  </>
+                )}
+              </button>
+              <button 
+                onClick={handleWithdraw}
+                disabled={actionLoading || balance < 500}
+                className="flex-1 bg-white dark:bg-slate-800 text-[#4a40e0] dark:text-indigo-400 border-2 border-[#4a40e0]/10 dark:border-slate-700 hover:border-[#4a40e0]/20 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-[12px] uppercase tracking-wider py-3.5 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer">
+                Withdraw ₹500
+              </button>
+            </div>
+
+            {/* Settings Toggles List */}
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-5 space-y-4">
+              
+              {/* AutoPay Settings */}
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-[14px] text-[#1c1b1f]">AutoPay</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Automatic deductions for parking</div>
+                  <div className="font-extrabold text-sm text-[#2B3674] dark:text-slate-200">AutoPay Gate Deductions</div>
+                  <div className="text-[11px] text-slate-400 font-semibold mt-0.5">Deduct fees automatically on fast exits</div>
                 </div>
                 <div 
-                  onClick={() => setAutoPayEnabled(!autoPayEnabled)} 
-                  className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${autoPayEnabled ? 'bg-[#4a40e0]' : 'bg-slate-300'}`}
+                  onClick={toggleAutoPay} 
+                  className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors duration-300 ${autoPayEnabled ? 'bg-[#4a40e0]' : 'bg-slate-300 dark:bg-slate-700'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${autoPayEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                 </div>
               </div>
-            </div>
 
-            {/* â”€â”€ SWITCH / ADD VEHICLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="px-5 pt-4 pb-4 flex flex-col gap-3">
-              <button className="w-full py-3.5 rounded-full border-2 border-[#4a40e0] text-[#4a40e0] font-bold text-[13px] hover:bg-[#f0effb] transition-all active:scale-[0.97]">
-                Switch Vehicle
-              </button>
-              <button className="text-[#4a40e0] text-[13px] font-semibold hover:underline">
-                Add New Vehicle
-              </button>
+              {/* Low Balance Alert Settings */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-extrabold text-sm text-[#2B3674] dark:text-slate-200">Low Balance Warnings</div>
+                  <div className="text-[11px] text-slate-400 font-semibold mt-0.5">Notify when card falls below ₹100</div>
+                </div>
+                <div 
+                  onClick={() => setLowBalAlert(!lowBalAlert)} 
+                  className={`w-12 h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors duration-300 ${lowBalAlert ? 'bg-[#4a40e0]' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${lowBalAlert ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </div>
+              </div>
+
             </div>
-          </>
-        )}
-      </main>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
